@@ -17,11 +17,14 @@ app.get('/categories', async (_req, res) => {
   res.json(rows);
 });
 app.get('/dashboard', async (req, res) => {
-  const parsed = z.object({ categoryId: z.string().uuid().optional(), year: z.coerce.number().int().optional() }).safeParse(req.query);
+  const parsed = z.object({ categoryId: z.string().uuid().optional(), year: z.coerce.number().int().optional(), region: z.string().trim().min(1).optional(), institution: z.string().trim().min(1).optional(), specialty: z.string().trim().min(1).optional() }).safeParse(req.query);
   if (!parsed.success) return res.status(400).json({ error: 'Некоректні фільтри' });
   const p = parsed.data; const values: unknown[] = []; const where: string[] = ["d.status = 'active'"];
   if (p.categoryId) { values.push(p.categoryId); where.push(`d.category_id = $${values.length}`); }
   if (p.year) { values.push(p.year); where.push(`s.year = $${values.length}`); }
+  if (p.region) { values.push(p.region); where.push(`s.region = $${values.length}`); }
+  if (p.institution) { values.push(p.institution); where.push(`s.institution = $${values.length}`); }
+  if (p.specialty) { values.push(p.specialty); where.push(`s.specialty = $${values.length}`); }
   const sql = `SELECT s.year, s.region, s.institution, s.specialty,
     SUM(s.women_count) AS women, SUM(s.men_count) AS men, SUM(s.nonbinary_count) AS nonbinary,
     SUM(s.women_count+s.men_count+s.nonbinary_count) AS total
