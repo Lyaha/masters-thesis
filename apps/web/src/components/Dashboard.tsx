@@ -46,16 +46,18 @@ export function Dashboard({
         <GenderOrb totals={totals} />
       </section>
 
-      <section className="filter">
-        <label>
-          {t('statisticsSource')}
-          <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
+      <section className="filter source-filter">
+        <label className="source-selector">
+          <span>{t('statisticsSource')}</span>
+          <span className="select-control">
+            <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </span>
         </label>
         <p>{categories.find((category) => category.id === categoryId)?.description}</p>
       </section>

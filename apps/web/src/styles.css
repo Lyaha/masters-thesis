@@ -283,6 +283,51 @@ button.orb-key-active {
 .filter label {
   min-width: 300px;
 }
+.source-selector {
+  display: grid;
+  gap: 8px;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.select-control {
+  position: relative;
+  display: block;
+}
+.select-control::after {
+  position: absolute;
+  top: 50%;
+  right: 13px;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
+  content: '';
+  pointer-events: none;
+  transform: translateY(-65%) rotate(45deg);
+}
+.source-selector select {
+  width: 100%;
+  appearance: none;
+  padding: 11px 38px 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-muted);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+.source-selector select:hover {
+  border-color: var(--accent-border);
+}
+.source-selector select:focus-visible {
+  border-color: var(--accent);
+  outline: 0;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
 .dashboard-filter-section {
   align-items: start;
   flex-direction: column;
