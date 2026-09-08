@@ -30,27 +30,39 @@ export function Dashboard({
 }: Props) {
   const { language, t } = useTranslation();
   const selectedCategory = categories.find((category) => category.id === categoryId);
+  const usesCountryData = data.kind === 'eurostat-it';
   const filteredGenderRows = useMemo(
-    () => (data.kind === 'gender-statistics' ? filterRows(data.rows, filters) : []),
+    () => (data.kind !== 'it-entrants' ? filterRows(data.rows, filters) : []),
     [data, filters],
   );
   const filteredItEntrantRows = useMemo(
     () => (data.kind === 'it-entrants' ? filterRows(data.rows, filters) : []),
     [data, filters],
   );
-  const options =
-    data.kind === 'gender-statistics' ? filterOptions(data.rows) : filterOptions(data.rows);
+  const options = data.kind === 'it-entrants' ? filterOptions(data.rows) : filterOptions(data.rows);
 
   return (
     <>
       <section className="hero">
         <div>
           <span>{t('monitoring')}</span>
-          <h1>{data.kind === 'it-entrants' ? t('itOpenDataTitle') : t('heroTitle')}</h1>
-          <p>{data.kind === 'it-entrants' ? t('itOpenDataDescription') : t('heroDescription')}</p>
+          <h1>
+            {data.kind === 'it-entrants'
+              ? t('itOpenDataTitle')
+              : usesCountryData
+                ? t('europeanHeroTitle')
+                : t('heroTitle')}
+          </h1>
+          <p>
+            {data.kind === 'it-entrants'
+              ? t('itOpenDataDescription')
+              : usesCountryData
+                ? t('europeanHeroDescription')
+                : t('heroDescription')}
+          </p>
           <button onClick={openProfile}>{t('addStatistics')}</button>
         </div>
-        {data.kind === 'gender-statistics' ? (
+        {data.kind !== 'it-entrants' ? (
           <GenderOrb totals={calculateTotal(data.rows)} />
         ) : (
           <ItDataMark />
@@ -78,19 +90,37 @@ export function Dashboard({
           <h2>{t('dataFilters')}</h2>
           <p>{t('filtersDescription')}</p>
         </div>
-        <DashboardFiltersPanel options={options} value={filters} onChange={setFilters} />
+        <DashboardFiltersPanel
+          options={options}
+          value={filters}
+          onChange={setFilters}
+          regionLabel={usesCountryData ? t('country') : undefined}
+          showInstitution={!usesCountryData}
+        />
       </section>
 
       {data.kind === 'it-entrants' ? (
         <ItEntrantsDashboard rows={filteredItEntrantRows} />
       ) : (
-        <GenderDashboard rows={filteredGenderRows} language={language} />
+        <GenderDashboard
+          rows={filteredGenderRows}
+          language={language}
+          usesCountryData={usesCountryData}
+        />
       )}
     </>
   );
 }
 
-function GenderDashboard({ rows, language }: { rows: DashboardRow[]; language: string }) {
+function GenderDashboard({
+  rows,
+  language,
+  usesCountryData,
+}: {
+  rows: DashboardRow[];
+  language: string;
+  usesCountryData: boolean;
+}) {
   const { t } = useTranslation();
   const totals = calculateTotal(rows);
   const total = totals.w + totals.m + totals.n;
@@ -110,7 +140,7 @@ function GenderDashboard({ rows, language }: { rows: DashboardRow[]; language: s
         <div className="title">
           <div>
             <span>{t('distribution')}</span>
-            <h2>{t('distributionTitle')}</h2>
+            <h2>{usesCountryData ? t('countryDistributionTitle') : t('distributionTitle')}</h2>
           </div>
           <div className="legend">
             <i className="women" />
@@ -119,7 +149,21 @@ function GenderDashboard({ rows, language }: { rows: DashboardRow[]; language: s
             {t('men')}
             <i className="other" />
             {t('other')}
-            <button className="outline" onClick={() => downloadDashboardCsv(rows)}>
+            <button
+              className="outline"
+              onClick={() =>
+                downloadDashboardCsv(
+                  rows,
+                  usesCountryData
+                    ? {
+                        institutionLabel: t('country'),
+                        includeRegion: false,
+                        fileName: `eurostat-it-students-${new Date().toISOString().slice(0, 10)}.csv`,
+                      }
+                    : undefined,
+                )
+              }
+            >
               {t('exportCsv')}
             </button>
           </div>
@@ -127,7 +171,7 @@ function GenderDashboard({ rows, language }: { rows: DashboardRow[]; language: s
         {rows.length ? (
           <div className="bars">
             {rows.map((row, index) => (
-              <DistributionBar key={index} row={row} />
+              <DistributionBar key={index} row={row} usesCountryData={usesCountryData} />
             ))}
           </div>
         ) : (
@@ -170,16 +214,20 @@ function calculateTotal(rows: DashboardRow[]): Totals {
   );
 }
 
-function DistributionBar({ row }: { row: DashboardRow }) {
+function DistributionBar({
+  row,
+  usesCountryData,
+}: {
+  row: DashboardRow;
+  usesCountryData: boolean;
+}) {
   const total = Number(row.total);
 
   return (
     <div className="bar">
       <div>
-        <b>{row.institution}</b>
-        <small>
-          {row.year} · {row.region}
-        </small>
+        <b>{usesCountryData ? row.region : row.institution}</b>
+        <small>{usesCountryData ? row.year : `${row.year} · ${row.region}`}</small>
       </div>
       <aside>
         <i className="women" style={{ width: `${pct(Number(row.women), total)}%` }} />

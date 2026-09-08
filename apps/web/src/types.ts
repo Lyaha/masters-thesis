@@ -26,6 +26,7 @@ export type ItEntrantRow = {
 };
 export type DashboardData =
   | { kind: 'gender-statistics'; rows: DashboardRow[] }
+  | { kind: 'eurostat-it'; rows: DashboardRow[] }
   | { kind: 'it-entrants'; rows: ItEntrantRow[] };
 export type Source = {
   id: string;

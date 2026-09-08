@@ -3,6 +3,7 @@ import { query } from '../db.js';
 import { asyncRoute } from '../http.js';
 import { dashboardFiltersSchema } from '../schemas.js';
 import { loadItEntrants } from '../services/it-open-data.js';
+import { loadEurostatItStudents } from '../services/eurostat-it-open-data.js';
 
 export const publicRouter = Router();
 
@@ -67,6 +68,30 @@ publicRouter.get(
         response.json({
           kind: 'it-entrants',
           rows: await loadItEntrants(sources[0].base_url),
+        });
+        return;
+      }
+
+      if (categories[0]?.slug === 'international-open-data') {
+        const { rows: sources } = await query<{ base_url: string }>(
+          `SELECT base_url
+           FROM api_sources
+           WHERE category_id = $1
+             AND name = 'Eurostat: ІТ-студенти за країною та статтю'
+             AND import_type = 'api'
+             AND enabled = true
+             AND base_url IS NOT NULL`,
+          [filters.categoryId],
+        );
+
+        if (!sources[0]) {
+          response.status(503).json({ error: 'Відкритий API-ресурс не налаштовано' });
+          return;
+        }
+
+        response.json({
+          kind: 'eurostat-it',
+          rows: await loadEurostatItStudents(sources[0].base_url),
         });
         return;
       }

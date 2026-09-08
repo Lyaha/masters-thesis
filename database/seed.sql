@@ -2,7 +2,7 @@ INSERT INTO source_categories (slug, name, description) VALUES
 ('site-users', 'Зареєстровані користувачі', 'Добровільно надані та агреговані відповіді користувачів платформи.'),
 ('ukraine-open-data', 'Відкриті джерела України', 'Реальні дані ЄДЕБО про вступ на ІТ-спеціальності: 121–126 у 2020–2024 роках і F2–F7 у 2025 році. Джерело не містить гендерного розподілу.'),
 ('test-data', 'Тестові', 'Демонстраційні дані для розробки та перевірки інтерфейсу.'),
-('international-open-data', 'Міжнародні відкриті джерела', 'Порівняльні міжнародні статистичні джерела.');
+('international-open-data', 'Європейські відкриті дані', 'Дані Eurostat про студентів ІТ-напрямів у країнах Європи за статтю, країною та роком. Дані не містять окремих закладів освіти; «Інші» означає стать, не вказану в джерелі.');
 
 INSERT INTO users (email, password_hash, role) VALUES
 ('admin@example.com', '$2a$10$ccpNWO5JbS12LQrHV4d1vOupT9NF.n/5ww4abXV0WNCirmx1nNbe.', 'admin');
@@ -25,5 +25,11 @@ INSERT INTO api_sources (category_id, name, base_url, import_type) VALUES
   (SELECT id FROM source_categories WHERE slug = 'ukraine-open-data'),
   'ЄДЕБО: вступ на ІТ-спеціальності',
   'https://registry.edbo.gov.ua/api/opendata/university-entrant/',
+  'api'
+),
+(
+  (SELECT id FROM source_categories WHERE slug = 'international-open-data'),
+  'Eurostat: ІТ-студенти за країною та статтю',
+  'https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/educ_uoe_enrt03',
   'api'
 );
