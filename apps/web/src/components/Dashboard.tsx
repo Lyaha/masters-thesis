@@ -1,4 +1,5 @@
 import { filterOptions, type DashboardFilters } from '../dashboard-filters';
+import { downloadDashboardCsv } from '../dashboard-export';
 import { percentage as pct, type Totals } from '../metrics';
 import type { Category, DashboardRow } from '../types';
 import { DashboardFiltersPanel } from './DashboardFilters';
@@ -75,6 +76,9 @@ export function Dashboard({
         </div>
         <div className="legend">
           <i className="women" />Жінки<i className="men" />Чоловіки<i className="other" />Інші
+          <button className="outline" onClick={() => downloadDashboardCsv(filteredRows)}>
+            Експорт CSV
+          </button>
         </div>
       </div>
       {filteredRows.length
