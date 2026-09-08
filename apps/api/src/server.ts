@@ -49,6 +49,9 @@ app.put('/profile/statistics', requireAuth, async (req: AuthRequest, res) => {
 });
 
 app.get('/admin/categories', requireAuth, requireAdmin, async (_req,res) => res.json((await query('SELECT * FROM source_categories ORDER BY created_at')).rows));
+app.get('/admin/datasets', requireAuth, requireAdmin, async (_req,res) => res.json((await query(`SELECT d.id,d.title,d.period_label,d.status,d.created_at,c.name AS category_name,COUNT(s.id)::int AS records_count
+  FROM datasets d JOIN source_categories c ON c.id=d.category_id LEFT JOIN gender_statistics s ON s.dataset_id=d.id
+  GROUP BY d.id,c.name ORDER BY d.created_at DESC`)).rows));
 app.post('/admin/categories', requireAuth, requireAdmin, async (req,res) => { const x=category.safeParse(req.body); if(!x.success)return res.status(400).json({error:'Некоректна категорія'}); const slug=x.data.name.toLowerCase().replace(/[^a-zа-яіїє0-9]+/g,'-').replace(/(^-|-$)/g,''); const {rows}=await query('INSERT INTO source_categories(slug,name,description,visible) VALUES($1,$2,$3,$4) RETURNING *',[slug,x.data.name,x.data.description,x.data.visible]); res.status(201).json(rows[0]); });
 app.patch('/admin/categories/:id', requireAuth, requireAdmin, async (req,res) => { const x=category.partial().safeParse(req.body); if(!x.success)return res.status(400).json({error:'Некоректні дані'}); const {rows}=await query('UPDATE source_categories SET name=COALESCE($2,name),description=COALESCE($3,description),visible=COALESCE($4,visible) WHERE id=$1 RETURNING *',[req.params.id,x.data.name,x.data.description,x.data.visible]); if(!rows[0])return res.status(404).json({error:'Категорію не знайдено'}); res.json(rows[0]); });
 app.delete('/admin/datasets/:id', requireAuth, requireAdmin, async (req,res) => { await query('DELETE FROM datasets WHERE id=$1',[req.params.id]); res.status(204).end(); });
