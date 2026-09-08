@@ -1,5 +1,3 @@
-import type { DashboardRow } from './types';
-
 export type DashboardFilters = {
   year?: string;
   region?: string;
@@ -7,7 +5,17 @@ export type DashboardFilters = {
   specialty?: string;
 };
 
-export function filterRows(rows: DashboardRow[], filters: DashboardFilters): DashboardRow[] {
+type FilterableRow = {
+  year: number;
+  region: string;
+  institution: string;
+  specialty?: string;
+};
+
+export function filterRows<Row extends FilterableRow>(
+  rows: Row[],
+  filters: DashboardFilters,
+): Row[] {
   return rows.filter(
     (row) =>
       (!filters.year || String(row.year) === filters.year) &&
@@ -17,7 +25,7 @@ export function filterRows(rows: DashboardRow[], filters: DashboardFilters): Das
   );
 }
 
-export function filterOptions(rows: DashboardRow[]) {
+export function filterOptions<Row extends FilterableRow>(rows: Row[]) {
   const unique = (values: string[]) =>
     [...new Set(values)].sort((a, b) => a.localeCompare(b, 'uk'));
   return {

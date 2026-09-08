@@ -1,15 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { request as api } from './api';
 import { AuthModal } from './components/AuthModal';
 import { Dashboard } from './components/Dashboard';
 import { Header } from './components/Header';
 import { Profile } from './components/Profile';
 import { Admin } from './components/admin/Admin';
-import { filterRows, type DashboardFilters } from './dashboard-filters';
+import type { DashboardFilters } from './dashboard-filters';
 import { useTranslation } from './i18n';
-import { calculateTotals } from './metrics';
 import { useToast } from './toast';
-import type { Category, DashboardRow, Session } from './types';
+import type { Category, DashboardData, Session } from './types';
 
 type Screen = 'dash' | 'profile' | 'admin';
 
@@ -23,7 +22,10 @@ export function App() {
   const [showAuth, setShowAuth] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryId, setCategoryId] = useState('');
-  const [rows, setRows] = useState<DashboardRow[]>([]);
+  const [dashboardData, setDashboardData] = useState<DashboardData>({
+    kind: 'gender-statistics',
+    rows: [],
+  });
   const [filters, setFilters] = useState<DashboardFilters>({});
 
   const loadCategories = () =>
@@ -40,15 +42,12 @@ export function App() {
 
   useEffect(() => {
     if (categoryId) {
-      api<DashboardRow[]>(`/dashboard?categoryId=${categoryId}`)
-        .then(setRows)
+      api<DashboardData>(`/dashboard?categoryId=${categoryId}`)
+        .then(setDashboardData)
         .catch((error) => notify(error.message, 'error'));
     }
   }, [categoryId]);
 
-  const filteredRows = useMemo(() => filterRows(rows, filters), [rows, filters]);
-  const totals = useMemo(() => calculateTotals(filteredRows), [filteredRows]);
-  const total = totals.w + totals.m + totals.n;
   const logout = () => {
     localStorage.removeItem('session');
     setSession(null);
@@ -75,12 +74,9 @@ export function App() {
             categories={categories}
             categoryId={categoryId}
             setCategoryId={selectCategory}
-            rows={rows}
-            filteredRows={filteredRows}
+            data={dashboardData}
             filters={filters}
             setFilters={setFilters}
-            totals={totals}
-            total={total}
             openProfile={openProfile}
           />
         )}

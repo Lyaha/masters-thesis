@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { query } from '../db.js';
 import { asyncRoute } from '../http.js';
 import { dashboardFiltersSchema } from '../schemas.js';
+import { loadItEntrants } from '../services/it-open-data.js';
 
 export const publicRouter = Router();
 
@@ -16,7 +17,7 @@ publicRouter.get(
       SELECT c.id, c.slug, c.name, c.description, c.visible
       FROM source_categories c
       WHERE c.visible = true
-      ORDER BY EXISTS (
+      ORDER BY (c.slug = 'ukraine-open-data') DESC, EXISTS (
         SELECT 1
         FROM datasets d
         JOIN gender_statistics s ON s.dataset_id = d.id
@@ -39,6 +40,38 @@ publicRouter.get(
     }
 
     const filters = parsedFilters.data;
+
+    if (filters.categoryId) {
+      const { rows: categories } = await query<{ slug: string }>(
+        'SELECT slug FROM source_categories WHERE id = $1 AND visible = true',
+        [filters.categoryId],
+      );
+
+      if (categories[0]?.slug === 'ukraine-open-data') {
+        const { rows: sources } = await query<{ base_url: string }>(
+          `SELECT base_url
+           FROM api_sources
+           WHERE category_id = $1
+             AND name = 'ЄДЕБО: вступ на ІТ-спеціальності'
+             AND import_type = 'api'
+             AND enabled = true
+             AND base_url IS NOT NULL`,
+          [filters.categoryId],
+        );
+
+        if (!sources[0]) {
+          response.status(503).json({ error: 'Відкритий API-ресурс не налаштовано' });
+          return;
+        }
+
+        response.json({
+          kind: 'it-entrants',
+          rows: await loadItEntrants(sources[0].base_url),
+        });
+        return;
+      }
+    }
+
     const values: unknown[] = [];
     const conditions = ["d.status = 'active'"];
     const addFilter = (condition: string, value: unknown) => {
@@ -66,6 +99,6 @@ publicRouter.get(
       values,
     );
 
-    response.json(rows);
+    response.json({ kind: 'gender-statistics', rows });
   }),
 );

@@ -1,6 +1,12 @@
 export type UserRole = 'user' | 'admin';
 export type Session = { token: string; role: UserRole } | null;
-export type Category = { id: string; name: string; description: string; visible?: boolean };
+export type Category = {
+  id: string;
+  slug?: string;
+  name: string;
+  description: string;
+  visible?: boolean;
+};
 export type DashboardRow = {
   year: number;
   region: string;
@@ -11,6 +17,16 @@ export type DashboardRow = {
   nonbinary: string;
   total: string;
 };
+export type ItEntrantRow = {
+  year: number;
+  region: string;
+  institution: string;
+  specialty: string;
+  total: string;
+};
+export type DashboardData =
+  | { kind: 'gender-statistics'; rows: DashboardRow[] }
+  | { kind: 'it-entrants'; rows: ItEntrantRow[] };
 export type Source = {
   id: string;
   name: string;

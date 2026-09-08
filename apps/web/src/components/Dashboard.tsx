@@ -1,22 +1,21 @@
-import { filterOptions, type DashboardFilters } from '../dashboard-filters';
+import { useMemo } from 'react';
+import { filterOptions, filterRows, type DashboardFilters } from '../dashboard-filters';
 import { downloadDashboardCsv } from '../dashboard-export';
 import { useTranslation } from '../i18n';
 import { percentage as pct, type Totals } from '../metrics';
-import type { Category, DashboardRow } from '../types';
+import type { Category, DashboardData, DashboardRow } from '../types';
 import { DashboardFiltersPanel } from './DashboardFilters';
 import { GenderOrb } from './GenderOrb';
+import { ItEntrantsDashboard } from './ItEntrantsDashboard';
 import { YearTrend } from './YearTrend';
 
 type Props = {
   categories: Category[];
   categoryId: string;
   setCategoryId: (id: string) => void;
-  rows: DashboardRow[];
-  filteredRows: DashboardRow[];
+  data: DashboardData;
   filters: DashboardFilters;
   setFilters: (filters: DashboardFilters) => void;
-  totals: Totals;
-  total: number;
   openProfile: () => void;
 };
 
@@ -24,26 +23,38 @@ export function Dashboard({
   categories,
   categoryId,
   setCategoryId,
-  rows,
-  filteredRows,
+  data,
   filters,
   setFilters,
-  totals,
-  total,
   openProfile,
 }: Props) {
   const { language, t } = useTranslation();
+  const selectedCategory = categories.find((category) => category.id === categoryId);
+  const filteredGenderRows = useMemo(
+    () => (data.kind === 'gender-statistics' ? filterRows(data.rows, filters) : []),
+    [data, filters],
+  );
+  const filteredItEntrantRows = useMemo(
+    () => (data.kind === 'it-entrants' ? filterRows(data.rows, filters) : []),
+    [data, filters],
+  );
+  const options =
+    data.kind === 'gender-statistics' ? filterOptions(data.rows) : filterOptions(data.rows);
 
   return (
     <>
       <section className="hero">
         <div>
           <span>{t('monitoring')}</span>
-          <h1>{t('heroTitle')}</h1>
-          <p>{t('heroDescription')}</p>
+          <h1>{data.kind === 'it-entrants' ? t('itOpenDataTitle') : t('heroTitle')}</h1>
+          <p>{data.kind === 'it-entrants' ? t('itOpenDataDescription') : t('heroDescription')}</p>
           <button onClick={openProfile}>{t('addStatistics')}</button>
         </div>
-        <GenderOrb totals={totals} />
+        {data.kind === 'gender-statistics' ? (
+          <GenderOrb totals={calculateTotal(data.rows)} />
+        ) : (
+          <ItDataMark />
+        )}
       </section>
 
       <section className="filter source-filter">
@@ -59,7 +70,7 @@ export function Dashboard({
             </select>
           </span>
         </label>
-        <p>{categories.find((category) => category.id === categoryId)?.description}</p>
+        <p>{selectedCategory?.description}</p>
       </section>
 
       <section className="filter dashboard-filter-section">
@@ -67,13 +78,25 @@ export function Dashboard({
           <h2>{t('dataFilters')}</h2>
           <p>{t('filtersDescription')}</p>
         </div>
-        <DashboardFiltersPanel
-          options={filterOptions(rows)}
-          value={filters}
-          onChange={setFilters}
-        />
+        <DashboardFiltersPanel options={options} value={filters} onChange={setFilters} />
       </section>
 
+      {data.kind === 'it-entrants' ? (
+        <ItEntrantsDashboard rows={filteredItEntrantRows} />
+      ) : (
+        <GenderDashboard rows={filteredGenderRows} language={language} />
+      )}
+    </>
+  );
+}
+
+function GenderDashboard({ rows, language }: { rows: DashboardRow[]; language: string }) {
+  const { t } = useTranslation();
+  const totals = calculateTotal(rows);
+  const total = totals.w + totals.m + totals.n;
+
+  return (
+    <>
       <section className="metrics">
         <Metric name={t('totalObservations')} value={total.toLocaleString(language)} />
         <Metric name={t('womenShare')} value={`${pct(totals.w, total)}%`} />
@@ -81,7 +104,7 @@ export function Dashboard({
         <Metric name={t('genderIndex')} value={totals.m ? (totals.w / totals.m).toFixed(2) : '—'} />
       </section>
 
-      <YearTrend rows={filteredRows} />
+      <YearTrend rows={rows} />
 
       <section className="card">
         <div className="title">
@@ -96,14 +119,14 @@ export function Dashboard({
             {t('men')}
             <i className="other" />
             {t('other')}
-            <button className="outline" onClick={() => downloadDashboardCsv(filteredRows)}>
+            <button className="outline" onClick={() => downloadDashboardCsv(rows)}>
               {t('exportCsv')}
             </button>
           </div>
         </div>
-        {filteredRows.length ? (
+        {rows.length ? (
           <div className="bars">
-            {filteredRows.map((row, index) => (
+            {rows.map((row, index) => (
               <DistributionBar key={index} row={row} />
             ))}
           </div>
@@ -121,6 +144,29 @@ function Metric({ name, value }: { name: string; value: string }) {
       <span>{name}</span>
       <b>{value}</b>
     </article>
+  );
+}
+
+function ItDataMark() {
+  const { t } = useTranslation();
+
+  return (
+    <div className="it-data-mark" aria-label={t('itDataMarkLabel')}>
+      <b>IT</b>
+      <small>{t('itSpecialties')}</small>
+      <span>ЄДЕБО</span>
+    </div>
+  );
+}
+
+function calculateTotal(rows: DashboardRow[]): Totals {
+  return rows.reduce(
+    (totals, row) => ({
+      w: totals.w + Number(row.women),
+      m: totals.m + Number(row.men),
+      n: totals.n + Number(row.nonbinary),
+    }),
+    { w: 0, m: 0, n: 0 },
   );
 }
 
