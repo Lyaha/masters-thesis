@@ -1,22 +1,185 @@
 import { type FormEvent, useEffect, useState } from 'react';
 import { request as api } from '../../api';
 import type { Category, Dataset, Session, Source } from '../../types';
+import { CsvImport, type DatasetImport } from './CsvImport';
 
-type Action = (url: string, options?: RequestInit) => void;
+type Action = (url: string, options?: RequestInit) => Promise<boolean>;
 type Notify = (message: string) => void;
+type Tab = 'categories' | 'sources' | 'import';
 
-export function Admin({ session, publicCategories, reloadCategories, notify }: { session: Session; publicCategories: Category[]; reloadCategories: () => void; notify: Notify }) {
-  const [tab, setTab] = useState('categories');
+const tabs: { id: Tab; name: string }[] = [
+  { id: 'categories', name: 'Категорії' },
+  { id: 'sources', name: 'API-джерела' },
+  { id: 'import', name: 'Імпорт CSV' },
+];
+
+type Props = {
+  session: Session;
+  publicCategories: Category[];
+  reloadCategories: () => Promise<void>;
+  notify: Notify;
+};
+
+export function Admin({ session, publicCategories, reloadCategories, notify }: Props) {
+  const [tab, setTab] = useState<Tab>('categories');
   const [categories, setCategories] = useState<Category[]>([]);
   const [sources, setSources] = useState<Source[]>([]);
   const [datasets, setDatasets] = useState<Dataset[]>([]);
-  const load = () => Promise.all([api<Category[]>('/admin/categories', {}, session), api<Source[]>('/admin/sources', {}, session), api<Dataset[]>('/admin/datasets', {}, session)]).then(([nextCategories, nextSources, nextDatasets]) => { setCategories(nextCategories); setSources(nextSources); setDatasets(nextDatasets); }).catch((error) => notify(error.message));
-  useEffect(() => { load(); }, []);
-  const act: Action = (url, options = {}) => { api(url, options, session).then(() => { load(); reloadCategories(); }).catch((error) => notify(error.message)); };
-  return <section className="page admin"><span>КОНТРОЛЬ ДАНИХ</span><h1>Адміністративна панель</h1><div className="tabs">{[['categories', 'Категорії'], ['sources', 'API-джерела'], ['import', 'Імпорт CSV']].map(([id, name]) => <button className={tab === id ? 'active' : ''} onClick={() => setTab(id)} key={id}>{name}</button>)}</div>{tab === 'categories' && <Categories categories={categories} act={act} />}{tab === 'sources' && <Sources categories={categories} sources={sources} act={act} />}{tab === 'import' && <Import categories={categories.length ? categories : publicCategories} datasets={datasets} act={act} notify={notify} />}</section>;
+
+  const load = async () => {
+    try {
+      const [nextCategories, nextSources, nextDatasets] = await Promise.all([
+        api<Category[]>('/admin/categories', {}, session),
+        api<Source[]>('/admin/sources', {}, session),
+        api<Dataset[]>('/admin/datasets', {}, session),
+      ]);
+      setCategories(nextCategories);
+      setSources(nextSources);
+      setDatasets(nextDatasets);
+    } catch (error) {
+      notify((error as Error).message);
+    }
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const act: Action = async (url, options = {}) => {
+    try {
+      await api(url, options, session);
+      await Promise.all([load(), reloadCategories()]);
+      return true;
+    } catch (error) {
+      notify((error as Error).message);
+      return false;
+    }
+  };
+
+  const importDataset = async (dataset: DatasetImport) => {
+    const imported = await act('/admin/datasets/import', {
+      method: 'POST',
+      body: JSON.stringify(dataset),
+    });
+    if (imported) notify(`Імпорт завершено: ${dataset.records.length} записів`);
+    return imported;
+  };
+
+  const importCategories = categories.length ? categories : publicCategories;
+
+  return <section className="page admin">
+    <span>КОНТРОЛЬ ДАНИХ</span>
+    <h1>Адміністративна панель</h1>
+    <div className="tabs">
+      {tabs.map(({ id, name }) => <button
+        className={tab === id ? 'active' : ''}
+        onClick={() => setTab(id)}
+        key={id}
+      >
+        {name}
+      </button>)}
+    </div>
+    {tab === 'categories' && <Categories categories={categories} act={act} />}
+    {tab === 'sources' && <Sources categories={categories} sources={sources} act={act} />}
+    {tab === 'import' && <CsvImport
+      categories={importCategories}
+      datasets={datasets}
+      onImport={importDataset}
+    />}
+  </section>;
 }
 
-function Categories({ categories, act }: { categories: Category[]; act: Action }) { const add = (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const form = new FormData(event.currentTarget); act('/admin/categories', { method: 'POST', body: JSON.stringify({ name: form.get('name'), description: form.get('description'), visible: true }) }); event.currentTarget.reset(); }; return <div className="admin-grid"><section className="card"><h2>Нова категорія</h2><form className="form small" onSubmit={add}><label>Назва<input name="name" required /></label><label>Опис<textarea name="description" required /></label><button>Створити</button></form></section><section className="card"><h2>Наявні категорії</h2><List>{categories.map((category) => <div className="row" key={category.id}><div><b>{category.name}</b><small>{category.description}</small></div><button className="outline" onClick={() => act(`/admin/categories/${category.id}`, { method: 'PATCH', body: JSON.stringify({ visible: !category.visible }) })}>{category.visible ? 'Приховати' : 'Показати'}</button></div>)}</List></section></div>; }
-function Sources({ categories, sources, act }: { categories: Category[]; sources: Source[]; act: Action }) { const add = (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const form = new FormData(event.currentTarget); act('/admin/sources', { method: 'POST', body: JSON.stringify({ categoryId: form.get('cat'), name: form.get('name'), baseUrl: form.get('url'), importType: form.get('type'), enabled: true }) }); event.currentTarget.reset(); }; return <div className="admin-grid"><section className="card"><h2>Підключити джерело</h2><form className="form small" onSubmit={add}><label>Категорія<select name="cat">{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label><label>Назва<input name="name" required placeholder="UNESCO API" /></label><label>URL<input name="url" type="url" placeholder="https://..." /></label><label>Тип<select name="type"><option value="api">API</option><option value="csv">CSV</option><option value="manual">Ручне</option></select></label><button>Додати</button></form></section><section className="card"><h2>API-джерела</h2><List>{sources.map((source) => <div className="row" key={source.id}><div><b>{source.name}</b><small>{source.category_name} · {source.import_type} {source.base_url && `· ${source.base_url}`}</small></div><div><button className="outline" onClick={() => act(`/admin/sources/${source.id}`, { method: 'PATCH', body: JSON.stringify({ enabled: !source.enabled }) })}>{source.enabled ? 'Вимкнути' : 'Увімкнути'}</button><button className="danger" onClick={() => act(`/admin/sources/${source.id}`, { method: 'DELETE' })}>Видалити</button></div></div>)}</List></section></div>; }
-function Import({ categories, datasets, act, notify }: { categories: Category[]; datasets: Dataset[]; act: Action; notify: Notify }) { const [csv, setCsv] = useState('institution,region,specialty,educationLevel,year,womenCount,menCount,nonbinaryCount\nДемо університет,Київ,Інженерія програмного забезпечення,бакалавр,2025,120,210,3'); const send = (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); try { const form = new FormData(event.currentTarget); const [header, ...lines] = csv.trim().split(/\r?\n/); const keys = header.split(','); const records = lines.filter(Boolean).map((line) => Object.fromEntries(line.split(',').map((value, index) => [keys[index], ['year', 'womenCount', 'menCount', 'nonbinaryCount'].includes(keys[index]) ? Number(value) : value]))); if (!records.length) throw Error('CSV порожній'); act('/admin/datasets/import', { method: 'POST', body: JSON.stringify({ categoryId: form.get('cat'), title: form.get('title'), periodLabel: form.get('period'), replaceDatasetId: form.get('replace') || undefined, records }) }); notify(`Імпорт: ${records.length} записів`); } catch (error) { notify((error as Error).message); } }; return <div className="admin-grid"><section className="card"><h2>Імпорт CSV</h2><form className="form small" onSubmit={send}><label>Категорія<select name="cat">{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label><label>Назва набору<input name="title" defaultValue="Новий статистичний набір" required /></label><label>Період<input name="period" defaultValue="2025" required /></label><label>Замінити набір<select name="replace"><option value="">Не замінювати</option>{datasets.map((dataset) => <option key={dataset.id} value={dataset.id}>{dataset.title}</option>)}</select></label><label>CSV<textarea value={csv} rows={9} onChange={(event) => setCsv(event.target.value)} /></label><button>Імпортувати</button></form></section><section className="card"><h2>Набори даних</h2><List>{datasets.map((dataset) => <div className="row" key={dataset.id}><div><b>{dataset.title}</b><small>{dataset.category_name} · {dataset.period_label} · {dataset.records_count} записів</small></div><button className="danger" onClick={() => act(`/admin/datasets/${dataset.id}`, { method: 'DELETE' })}>Видалити</button></div>)}</List></section></div>; }
-function List({ children }: { children: React.ReactNode }) { return <div className="list">{children}</div>; }
+function Categories({ categories, act }: { categories: Category[]; act: Action }) {
+  const add = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const created = await act('/admin/categories', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: form.get('name'),
+        description: form.get('description'),
+        visible: true,
+      }),
+    });
+    if (created) event.currentTarget.reset();
+  };
+
+  return <div className="admin-grid">
+    <section className="card">
+      <h2>Нова категорія</h2>
+      <form className="form small" onSubmit={add}>
+        <label>Назва<input name="name" required /></label>
+        <label>Опис<textarea name="description" required /></label>
+        <button>Створити</button>
+      </form>
+    </section>
+    <section className="card">
+      <h2>Наявні категорії</h2>
+      <List>{categories.map((category) => <div className="row" key={category.id}>
+        <div><b>{category.name}</b><small>{category.description}</small></div>
+        <button
+          className="outline"
+          onClick={() => act(`/admin/categories/${category.id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ visible: !category.visible }),
+          })}
+        >
+          {category.visible ? 'Приховати' : 'Показати'}
+        </button>
+      </div>)}</List>
+    </section>
+  </div>;
+}
+
+function Sources({ categories, sources, act }: { categories: Category[]; sources: Source[]; act: Action }) {
+  const add = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const created = await act('/admin/sources', {
+      method: 'POST',
+      body: JSON.stringify({
+        categoryId: form.get('cat'),
+        name: form.get('name'),
+        baseUrl: form.get('url'),
+        importType: form.get('type'),
+        enabled: true,
+      }),
+    });
+    if (created) event.currentTarget.reset();
+  };
+
+  return <div className="admin-grid">
+    <section className="card">
+      <h2>Підключити джерело</h2>
+      <form className="form small" onSubmit={add}>
+        <label>Категорія<select name="cat">{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
+        <label>Назва<input name="name" required placeholder="UNESCO API" /></label>
+        <label>URL<input name="url" type="url" placeholder="https://..." /></label>
+        <label>Тип<select name="type"><option value="api">API</option><option value="csv">CSV</option><option value="manual">Ручне</option></select></label>
+        <button>Додати</button>
+      </form>
+    </section>
+    <section className="card">
+      <h2>API-джерела</h2>
+      <List>{sources.map((source) => <div className="row" key={source.id}>
+        <div><b>{source.name}</b><small>{source.category_name} · {source.import_type} {source.base_url && `· ${source.base_url}`}</small></div>
+        <div>
+          <button
+            className="outline"
+            onClick={() => act(`/admin/sources/${source.id}`, {
+              method: 'PATCH',
+              body: JSON.stringify({ enabled: !source.enabled }),
+            })}
+          >
+            {source.enabled ? 'Вимкнути' : 'Увімкнути'}
+          </button>
+          <button className="danger" onClick={() => act(`/admin/sources/${source.id}`, { method: 'DELETE' })}>Видалити</button>
+        </div>
+      </div>)}</List>
+    </section>
+  </div>;
+}
+
+function List({ children }: { children: React.ReactNode }) {
+  return <div className="list">{children}</div>;
+}
