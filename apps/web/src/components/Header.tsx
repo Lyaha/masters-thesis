@@ -1,0 +1,4 @@
+import type { Session } from '../types';
+type Screen = 'dash' | 'profile' | 'admin';
+type Props = { screen: Screen; session: Session; setScreen: (screen: Screen) => void; logout: () => void; openAuth: () => void };
+export function Header({ screen, session, setScreen, logout, openAuth }: Props) { return <header><a className="brand" onClick={() => setScreen('dash')}>◒ <b>Gender IT Observatory</b></a><nav><button className={screen === 'dash' ? 'active' : ''} onClick={() => setScreen('dash')}>Дашборд</button>{session && <button className={screen === 'profile' ? 'active' : ''} onClick={() => setScreen('profile')}>Мій профіль</button>}{session?.role === 'admin' && <button className={screen === 'admin' ? 'active' : ''} onClick={() => setScreen('admin')}>Адмінпанель</button>}</nav>{session ? <button className="outline" onClick={logout}>Вийти</button> : <button onClick={openAuth}>Увійти</button>}</header>; }
