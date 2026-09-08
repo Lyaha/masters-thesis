@@ -2,18 +2,56 @@ import express from 'express';
 import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
-import { query } from './db.js';
+import { pool, query } from './db.js';
 import { requireAdmin, requireAuth, tokenFor, type AuthRequest } from './auth.js';
 
 const app = express();
-app.use(cors()); app.use(express.json());
+
+app.use(cors());
+app.use(express.json());
+
 const credentials = z.object({ email: z.string().email(), password: z.string().min(8) });
 const category = z.object({ name: z.string().min(3), description: z.string().default(''), visible: z.boolean().default(true) });
-const source = z.object({ categoryId: z.string().uuid(), name: z.string().min(2), baseUrl: z.string().url().optional().or(z.literal('')), importType: z.enum(['csv', 'api', 'manual']), enabled: z.boolean().default(true) });
+const newSourceCategory = category.pick({ name: true, description: true });
+const sourceFields = z.object({
+  categoryId: z.string().uuid().optional(),
+  category: newSourceCategory.optional(),
+  name: z.string().min(2),
+  baseUrl: z.string().url().optional().or(z.literal('')),
+  importType: z.enum(['csv', 'api', 'manual']),
+  enabled: z.boolean().default(true),
+});
+const source = sourceFields.refine(
+  (value) => Boolean(value.categoryId) !== Boolean(value.category),
+  { message: 'Оберіть категорію або створіть нову' },
+);
+const sourceUpdate = sourceFields.pick({
+  name: true,
+  baseUrl: true,
+  importType: true,
+  enabled: true,
+}).partial();
+
+function categorySlug(name: string) {
+  return name
+    .toLocaleLowerCase('uk')
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/(^-|-$)/g, '');
+}
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 app.get('/categories', async (_req, res) => {
-  const { rows } = await query('SELECT id, slug, name, description, visible FROM source_categories WHERE visible = true ORDER BY created_at');
+  const { rows } = await query(`
+    SELECT c.id, c.slug, c.name, c.description, c.visible
+    FROM source_categories c
+    WHERE c.visible = true
+    ORDER BY EXISTS (
+      SELECT 1
+      FROM datasets d
+      JOIN gender_statistics s ON s.dataset_id = d.id
+      WHERE d.category_id = c.id AND d.status = 'active'
+    ) DESC, c.created_at
+  `);
   res.json(rows);
 });
 app.get('/dashboard', async (req, res) => {
@@ -55,7 +93,17 @@ app.get('/admin/categories', requireAuth, requireAdmin, async (_req,res) => res.
 app.get('/admin/datasets', requireAuth, requireAdmin, async (_req,res) => res.json((await query(`SELECT d.id,d.title,d.period_label,d.status,d.created_at,c.name AS category_name,COUNT(s.id)::int AS records_count
   FROM datasets d JOIN source_categories c ON c.id=d.category_id LEFT JOIN gender_statistics s ON s.dataset_id=d.id
   GROUP BY d.id,c.name ORDER BY d.created_at DESC`)).rows));
-app.post('/admin/categories', requireAuth, requireAdmin, async (req,res) => { const x=category.safeParse(req.body); if(!x.success)return res.status(400).json({error:'Некоректна категорія'}); const slug=x.data.name.toLowerCase().replace(/[^a-zа-яіїє0-9]+/g,'-').replace(/(^-|-$)/g,''); const {rows}=await query('INSERT INTO source_categories(slug,name,description,visible) VALUES($1,$2,$3,$4) RETURNING *',[slug,x.data.name,x.data.description,x.data.visible]); res.status(201).json(rows[0]); });
+app.post('/admin/categories', requireAuth, requireAdmin, async (req, res) => {
+  const data = category.safeParse(req.body);
+
+  if (!data.success) return res.status(400).json({ error: 'Некоректна категорія' });
+
+  const { rows } = await query(
+    'INSERT INTO source_categories(slug,name,description,visible) VALUES($1,$2,$3,$4) RETURNING *',
+    [categorySlug(data.data.name), data.data.name, data.data.description, data.data.visible],
+  );
+  res.status(201).json(rows[0]);
+});
 app.patch('/admin/categories/:id', requireAuth, requireAdmin, async (req,res) => { const x=category.partial().safeParse(req.body); if(!x.success)return res.status(400).json({error:'Некоректні дані'}); const {rows}=await query('UPDATE source_categories SET name=COALESCE($2,name),description=COALESCE($3,description),visible=COALESCE($4,visible) WHERE id=$1 RETURNING *',[req.params.id,x.data.name,x.data.description,x.data.visible]); if(!rows[0])return res.status(404).json({error:'Категорію не знайдено'}); res.json(rows[0]); });
 app.delete('/admin/datasets/:id', requireAuth, requireAdmin, async (req,res) => { await query('DELETE FROM datasets WHERE id=$1',[req.params.id]); res.status(204).end(); });
 app.post('/admin/datasets/import', requireAuth, requireAdmin, async (req: AuthRequest,res) => {
@@ -69,8 +117,49 @@ app.post('/admin/datasets/import', requireAuth, requireAdmin, async (req: AuthRe
   } catch { await client.query('ROLLBACK'); res.status(500).json({ error:'Імпорт не завершено; попередній набір збережено' }); } finally { client.release(); }
 });
 app.get('/admin/sources', requireAuth, requireAdmin, async (_req,res) => res.json((await query('SELECT a.*,c.name AS category_name FROM api_sources a JOIN source_categories c ON c.id=a.category_id ORDER BY a.created_at')).rows));
-app.post('/admin/sources', requireAuth, requireAdmin, async (req,res) => { const x=source.safeParse(req.body); if(!x.success)return res.status(400).json({error:'Некоректне джерело API'}); const {rows}=await query('INSERT INTO api_sources(category_id,name,base_url,import_type,enabled) VALUES($1,$2,$3,$4,$5) RETURNING *',[x.data.categoryId,x.data.name,x.data.baseUrl||null,x.data.importType,x.data.enabled]); res.status(201).json(rows[0]); });
-app.patch('/admin/sources/:id', requireAuth, requireAdmin, async(req,res)=> { const x=source.partial().safeParse(req.body); if(!x.success)return res.status(400).json({error:'Некоректні дані'}); const {rows}=await query('UPDATE api_sources SET name=COALESCE($2,name),base_url=COALESCE($3,base_url),import_type=COALESCE($4,import_type),enabled=COALESCE($5,enabled) WHERE id=$1 RETURNING *',[req.params.id,x.data.name,x.data.baseUrl,x.data.importType,x.data.enabled]); res.json(rows[0]); });
+app.post('/admin/sources', requireAuth, requireAdmin, async (req, res) => {
+  const data = source.safeParse(req.body);
+
+  if (!data.success) return res.status(400).json({ error: 'Некоректне джерело API' });
+
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+    let categoryId = data.data.categoryId;
+
+    if (data.data.category) {
+      const slug = categorySlug(data.data.category.name);
+      const existingCategory = await client.query<{ id: string }>(
+        'SELECT id FROM source_categories WHERE slug = $1',
+        [slug],
+      );
+
+      if (existingCategory.rows[0]) {
+        categoryId = existingCategory.rows[0].id;
+      } else {
+        const createdCategory = await client.query<{ id: string }>(
+          'INSERT INTO source_categories(slug,name,description,visible) VALUES($1,$2,$3,true) RETURNING id',
+          [slug, data.data.category.name, data.data.category.description],
+        );
+        categoryId = createdCategory.rows[0].id;
+      }
+    }
+
+    const { rows } = await client.query(
+      'INSERT INTO api_sources(category_id,name,base_url,import_type,enabled) VALUES($1,$2,$3,$4,$5) RETURNING *',
+      [categoryId, data.data.name, data.data.baseUrl || null, data.data.importType, data.data.enabled],
+    );
+    await client.query('COMMIT');
+    res.status(201).json(rows[0]);
+  } catch {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: 'Не вдалося додати джерело API' });
+  } finally {
+    client.release();
+  }
+});
+app.patch('/admin/sources/:id', requireAuth, requireAdmin, async(req,res)=> { const x=sourceUpdate.safeParse(req.body); if(!x.success)return res.status(400).json({error:'Некоректні дані'}); const {rows}=await query('UPDATE api_sources SET name=COALESCE($2,name),base_url=COALESCE($3,base_url),import_type=COALESCE($4,import_type),enabled=COALESCE($5,enabled) WHERE id=$1 RETURNING *',[req.params.id,x.data.name,x.data.baseUrl,x.data.importType,x.data.enabled]); res.json(rows[0]); });
 app.delete('/admin/sources/:id', requireAuth, requireAdmin, async(req,res)=> { await query('DELETE FROM api_sources WHERE id=$1',[req.params.id]); res.status(204).end(); });
 
 app.listen(Number(process.env.PORT || 3001), () => console.log('API listening on 3001'));

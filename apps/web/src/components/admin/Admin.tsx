@@ -132,13 +132,20 @@ function Categories({ categories, act }: { categories: Category[]; act: Action }
 }
 
 function Sources({ categories, sources, act }: { categories: Category[]; sources: Source[]; act: Action }) {
+  const [categoryId, setCategoryId] = useState(categories[0]?.id ?? '');
+  const isNewCategory = !categoryId;
+
   const add = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const created = await act('/admin/sources', {
       method: 'POST',
       body: JSON.stringify({
-        categoryId: form.get('cat'),
+        categoryId: categoryId || undefined,
+        category: isNewCategory ? {
+          name: form.get('categoryName'),
+          description: form.get('categoryDescription'),
+        } : undefined,
         name: form.get('name'),
         baseUrl: form.get('url'),
         importType: form.get('type'),
@@ -152,7 +159,17 @@ function Sources({ categories, sources, act }: { categories: Category[]; sources
     <section className="card">
       <h2>Підключити джерело</h2>
       <form className="form small" onSubmit={add}>
-        <label>Категорія<select name="cat">{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
+        <label>
+          Категорія
+          <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
+            {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+            <option value="">+ Нова категорія</option>
+          </select>
+        </label>
+        {isNewCategory && <>
+          <label>Назва нової категорії<input name="categoryName" required placeholder="Освітні дані ЄС" /></label>
+          <label>Опис категорії<textarea name="categoryDescription" required /></label>
+        </>}
         <label>Назва<input name="name" required placeholder="UNESCO API" /></label>
         <label>URL<input name="url" type="url" placeholder="https://..." /></label>
         <label>Тип<select name="type"><option value="api">API</option><option value="csv">CSV</option><option value="manual">Ручне</option></select></label>
