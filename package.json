@@ -1,0 +1,12 @@
+{
+  "name": "gender-it-education-platform",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@11.19.0",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @gender-platform/api --filter @gender-platform/web dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test"
+  },
+  "devDependencies": { "concurrently": "^9.1.2" }
+}
