@@ -1,11 +1,10 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
+import { request as api } from './api';
+import { calculateTotals, percentage as pct } from './metrics';
+import type { Category, DashboardRow as Row, Dataset, Session, Source } from './types';
 
-const API=import.meta.env.VITE_API_URL||'http://localhost:3001';
-type Session={token:string;role:'user'|'admin'}|null; type Category={id:string;name:string;description:string;visible?:boolean}; type Row={year:number;region:string;institution:string;women:string;men:string;nonbinary:string;total:string}; type Source={id:string;name:string;category_name:string;base_url:string|null;import_type:string;enabled:boolean}; type Dataset={id:string;title:string;period_label:string;category_name:string;records_count:number};
-const pct=(x:number,t:number)=>t?Math.round(100*x/t):0;
-async function api<T>(path:string,opts:RequestInit={},s:Session=null):Promise<T>{const r=await fetch(API+path,{...opts,headers:{'Content-Type':'application/json',...(s?{Authorization:`Bearer ${s.token}`} : {}),...((opts.headers||{}) as Record<string,string>)}});if(!r.ok){const e=await r.json().catch(()=>({}));throw Error(e.error||'Помилка запиту');}return r.status===204?undefined as T:r.json()}
 
 function App(){const [screen,setScreen]=useState<'dash'|'profile'|'admin'>('dash'),[session,setSession]=useState<Session>(()=>JSON.parse(localStorage.getItem('session')||'null')),[showAuth,setShowAuth]=useState(false),[notice,setNotice]=useState('');const [cats,setCats]=useState<Category[]>([]),[cid,setCid]=useState(''),[rows,setRows]=useState<Row[]>([]);
  const loadCats=()=>api<Category[]>('/categories').then(x=>{setCats(x);setCid(v=>v||x[0]?.id||'')}).catch(e=>setNotice(e.message)); useEffect(()=>{loadCats()},[]);useEffect(()=>{if(cid)api<Row[]>(`/dashboard?categoryId=${cid}`).then(setRows).catch(e=>setNotice(e.message))},[cid]); const sums=useMemo(()=>rows.reduce((a,r)=>({w:a.w+Number(r.women),m:a.m+Number(r.men),n:a.n+Number(r.nonbinary)}),{w:0,m:0,n:0}),[rows]),total=sums.w+sums.m+sums.n;
