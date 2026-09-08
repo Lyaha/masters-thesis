@@ -6,18 +6,21 @@ import { Header } from './components/Header';
 import { Profile } from './components/Profile';
 import { Admin } from './components/admin/Admin';
 import { filterRows, type DashboardFilters } from './dashboard-filters';
+import { useTranslation } from './i18n';
 import { calculateTotals } from './metrics';
+import { useToast } from './toast';
 import type { Category, DashboardRow, Session } from './types';
 
 type Screen = 'dash' | 'profile' | 'admin';
 
 export function App() {
+  const { t } = useTranslation();
+  const { notify } = useToast();
   const [screen, setScreen] = useState<Screen>('dash');
   const [session, setSession] = useState<Session>(() =>
     JSON.parse(localStorage.getItem('session') || 'null'),
   );
   const [showAuth, setShowAuth] = useState(false);
-  const [notice, setNotice] = useState('');
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryId, setCategoryId] = useState('');
   const [rows, setRows] = useState<DashboardRow[]>([]);
@@ -29,7 +32,7 @@ export function App() {
         setCategories(items);
         setCategoryId((value) => value || items[0]?.id || '');
       })
-      .catch((error) => setNotice(error.message));
+      .catch((error) => notify(error.message, 'error'));
 
   useEffect(() => {
     loadCategories();
@@ -39,7 +42,7 @@ export function App() {
     if (categoryId) {
       api<DashboardRow[]>(`/dashboard?categoryId=${categoryId}`)
         .then(setRows)
-        .catch((error) => setNotice(error.message));
+        .catch((error) => notify(error.message, 'error'));
     }
   }, [categoryId]);
 
@@ -67,12 +70,6 @@ export function App() {
         openAuth={() => setShowAuth(true)}
       />
       <main>
-        {notice && (
-          <p className="notice">
-            {notice}
-            <button onClick={() => setNotice('')}>×</button>
-          </p>
-        )}
         {screen === 'dash' && (
           <Dashboard
             categories={categories}
@@ -87,13 +84,13 @@ export function App() {
             openProfile={openProfile}
           />
         )}
-        {screen === 'profile' && session && <Profile session={session} notify={setNotice} />}
+        {screen === 'profile' && session && <Profile session={session} notify={notify} />}
         {screen === 'admin' && session?.role === 'admin' && (
           <Admin
             session={session}
             publicCategories={categories}
             reloadCategories={loadCategories}
-            notify={setNotice}
+            notify={notify}
           />
         )}
       </main>
@@ -103,7 +100,7 @@ export function App() {
             localStorage.setItem('session', JSON.stringify(newSession));
             setSession(newSession);
             setShowAuth(false);
-            setNotice('Авторизація успішна.');
+            notify(t('loginSuccess'), 'success');
           }}
           close={() => setShowAuth(false)}
         />

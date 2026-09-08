@@ -1,5 +1,6 @@
 import { type ChangeEvent, type FormEvent, useState } from 'react';
 import { parseStatisticsCsv, type StatisticRecord } from '../../csv';
+import { useTranslation } from '../../i18n';
 import type { Category, Dataset } from '../../types';
 
 const exampleCsv = [
@@ -22,6 +23,7 @@ type Props = {
 };
 
 export function CsvImport({ categories, datasets, onImport }: Props) {
+  const { t } = useTranslation();
   const [csv, setCsv] = useState(exampleCsv);
   const [records, setRecords] = useState<StatisticRecord[]>(() => parseStatisticsCsv(exampleCsv));
   const [error, setError] = useState('');
@@ -74,10 +76,10 @@ export function CsvImport({ categories, datasets, onImport }: Props) {
   return (
     <div className="admin-grid">
       <section className="card">
-        <h2>Імпорт CSV</h2>
+        <h2>{t('csvImport')}</h2>
         <form className="form small" onSubmit={submit}>
           <label>
-            Категорія
+            {t('categories')}
             <select name="cat">
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
@@ -87,17 +89,17 @@ export function CsvImport({ categories, datasets, onImport }: Props) {
             </select>
           </label>
           <label>
-            Назва набору
+            {t('datasetTitle')}
             <input name="title" defaultValue="Новий статистичний набір" required />
           </label>
           <label>
-            Період
+            {t('period')}
             <input name="period" defaultValue="2025" required />
           </label>
           <label>
-            Замінити набір
+            {t('replaceDataset')}
             <select name="replace">
-              <option value="">Не замінювати</option>
+              <option value="">{t('doNotReplace')}</option>
               {datasets.map((dataset) => (
                 <option key={dataset.id} value={dataset.id}>
                   {dataset.title}
@@ -106,17 +108,21 @@ export function CsvImport({ categories, datasets, onImport }: Props) {
             </select>
           </label>
           <label>
-            CSV-файл
+            {t('csvFile')}
             <input type="file" accept=".csv,text/csv" onChange={selectFile} />
           </label>
-          {fileName && <p className="file-name">Обрано файл: {fileName}</p>}
+          {fileName && (
+            <p className="file-name">
+              {t('selectedFile')}: {fileName}
+            </p>
+          )}
           <label>
             CSV
             <textarea value={csv} rows={9} onChange={(event) => validate(event.target.value)} />
           </label>
           {error && <p className="error">{error}</p>}
           <button disabled={!records.length}>
-            Імпортувати {records.length ? `(${records.length})` : ''}
+            {t('import')} {records.length ? `(${records.length})` : ''}
           </button>
         </form>
       </section>
@@ -126,24 +132,26 @@ export function CsvImport({ categories, datasets, onImport }: Props) {
 }
 
 function Preview({ records }: { records: StatisticRecord[] }) {
+  const { t } = useTranslation();
+
   return (
     <section className="card">
-      <h2>Передперегляд</h2>
+      <h2>{t('preview')}</h2>
       {records.length ? (
         <>
           <p className="preview-summary">
-            Готово до імпорту: {records.length} записів. Показано перші 5.
+            {t('previewReady').replace('{count}', String(records.length))}
           </p>
           <div className="preview-table">
             <table>
               <thead>
                 <tr>
-                  <th>ЗВО</th>
-                  <th>Регіон</th>
-                  <th>Спеціальність</th>
-                  <th>Рік</th>
-                  <th>Жінки</th>
-                  <th>Чоловіки</th>
+                  <th>{t('institution')}</th>
+                  <th>{t('region')}</th>
+                  <th>{t('specialty')}</th>
+                  <th>{t('year')}</th>
+                  <th>{t('women')}</th>
+                  <th>{t('men')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -162,7 +170,7 @@ function Preview({ records }: { records: StatisticRecord[] }) {
           </div>
         </>
       ) : (
-        <p className="empty">Завантажте коректний CSV, щоб побачити передперегляд.</p>
+        <p className="empty">{t('previewEmpty')}</p>
       )}
     </section>
   );

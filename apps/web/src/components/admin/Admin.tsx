@@ -1,17 +1,12 @@
 import { type FormEvent, useEffect, useState } from 'react';
 import { request as api } from '../../api';
+import { useTranslation } from '../../i18n';
 import type { Category, Dataset, Session, Source } from '../../types';
 import { CsvImport, type DatasetImport } from './CsvImport';
 
 type Action = (url: string, options?: RequestInit) => Promise<boolean>;
-type Notify = (message: string) => void;
+type Notify = (message: string, variant?: 'info' | 'error' | 'success') => void;
 type Tab = 'categories' | 'sources' | 'import';
-
-const tabs: { id: Tab; name: string }[] = [
-  { id: 'categories', name: 'Категорії' },
-  { id: 'sources', name: 'API-джерела' },
-  { id: 'import', name: 'Імпорт CSV' },
-];
 
 type Props = {
   session: Session;
@@ -21,6 +16,7 @@ type Props = {
 };
 
 export function Admin({ session, publicCategories, reloadCategories, notify }: Props) {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>('categories');
   const [categories, setCategories] = useState<Category[]>([]);
   const [sources, setSources] = useState<Source[]>([]);
@@ -61,7 +57,9 @@ export function Admin({ session, publicCategories, reloadCategories, notify }: P
       method: 'POST',
       body: JSON.stringify(dataset),
     });
-    if (imported) notify(`Імпорт завершено: ${dataset.records.length} записів`);
+    if (imported) {
+      notify(t('importFinished').replace('{count}', String(dataset.records.length)), 'success');
+    }
     return imported;
   };
 
@@ -69,10 +67,14 @@ export function Admin({ session, publicCategories, reloadCategories, notify }: P
 
   return (
     <section className="page admin">
-      <span>КОНТРОЛЬ ДАНИХ</span>
-      <h1>Адміністративна панель</h1>
+      <span>{t('dataControl')}</span>
+      <h1>{t('adminTitle')}</h1>
       <div className="tabs">
-        {tabs.map(({ id, name }) => (
+        {[
+          { id: 'categories' as const, name: t('categories') },
+          { id: 'sources' as const, name: t('apiSources') },
+          { id: 'import' as const, name: t('csvImport') },
+        ].map(({ id, name }) => (
           <button className={tab === id ? 'active' : ''} onClick={() => setTab(id)} key={id}>
             {name}
           </button>
@@ -88,6 +90,7 @@ export function Admin({ session, publicCategories, reloadCategories, notify }: P
 }
 
 function Categories({ categories, act }: { categories: Category[]; act: Action }) {
+  const { t } = useTranslation();
   const add = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -105,21 +108,21 @@ function Categories({ categories, act }: { categories: Category[]; act: Action }
   return (
     <div className="admin-grid">
       <section className="card">
-        <h2>Нова категорія</h2>
+        <h2>{t('newCategory')}</h2>
         <form className="form small" onSubmit={add}>
           <label>
-            Назва
+            {t('name')}
             <input name="name" required />
           </label>
           <label>
-            Опис
+            {t('description')}
             <textarea name="description" required />
           </label>
-          <button>Створити</button>
+          <button>{t('create')}</button>
         </form>
       </section>
       <section className="card">
-        <h2>Наявні категорії</h2>
+        <h2>{t('existingCategories')}</h2>
         <List>
           {categories.map((category) => (
             <div className="row" key={category.id}>
@@ -136,7 +139,7 @@ function Categories({ categories, act }: { categories: Category[]; act: Action }
                   })
                 }
               >
-                {category.visible ? 'Приховати' : 'Показати'}
+                {category.visible ? t('hide') : t('show')}
               </button>
             </div>
           ))}
@@ -155,6 +158,7 @@ function Sources({
   sources: Source[];
   act: Action;
 }) {
+  const { t } = useTranslation();
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>();
   const categoryId = selectedCategoryId ?? categories[0]?.id ?? '';
   const isNewCategory = selectedCategoryId === '';
@@ -184,10 +188,10 @@ function Sources({
   return (
     <div className="admin-grid">
       <section className="card">
-        <h2>Підключити джерело</h2>
+        <h2>{t('connectSource')}</h2>
         <form className="form small" onSubmit={add}>
           <label>
-            Категорія
+            {t('categories')}
             <select
               value={categoryId}
               onChange={(event) => setSelectedCategoryId(event.target.value)}
@@ -197,42 +201,42 @@ function Sources({
                   {category.name}
                 </option>
               ))}
-              <option value="">+ Нова категорія</option>
+              <option value="">{t('newCategoryOption')}</option>
             </select>
           </label>
           {isNewCategory && (
             <>
               <label>
-                Назва нової категорії
+                {t('newCategoryName')}
                 <input name="categoryName" required placeholder="Освітні дані ЄС" />
               </label>
               <label>
-                Опис категорії
+                {t('categoryDescription')}
                 <textarea name="categoryDescription" required />
               </label>
             </>
           )}
           <label>
-            Назва
+            {t('name')}
             <input name="name" required placeholder="UNESCO API" />
           </label>
           <label>
-            URL
+            {t('url')}
             <input name="url" type="url" placeholder="https://..." />
           </label>
           <label>
-            Тип
+            {t('type')}
             <select name="type">
               <option value="api">API</option>
               <option value="csv">CSV</option>
-              <option value="manual">Ручне</option>
+              <option value="manual">{t('manual')}</option>
             </select>
           </label>
-          <button>Додати</button>
+          <button>{t('add')}</button>
         </form>
       </section>
       <section className="card">
-        <h2>API-джерела</h2>
+        <h2>{t('apiSources')}</h2>
         <List>
           {sources.map((source) => (
             <div className="row" key={source.id}>
@@ -253,13 +257,13 @@ function Sources({
                     })
                   }
                 >
-                  {source.enabled ? 'Вимкнути' : 'Увімкнути'}
+                  {source.enabled ? t('disable') : t('enable')}
                 </button>
                 <button
                   className="danger"
                   onClick={() => act(`/admin/sources/${source.id}`, { method: 'DELETE' })}
                 >
-                  Видалити
+                  {t('delete')}
                 </button>
               </div>
             </div>

@@ -1,4 +1,5 @@
 import type { DashboardFilters } from '../dashboard-filters';
+import { useTranslation } from '../i18n';
 
 type Props = {
   options: {
@@ -19,11 +20,13 @@ type SelectProps = {
 };
 
 function Select({ label, values, value, onChange }: SelectProps) {
+  const { t } = useTranslation();
+
   return (
     <label>
       {label}
       <select value={value || ''} onChange={(event) => onChange(event.target.value)}>
-        <option value="">Усі</option>
+        <option value="">{t('all')}</option>
         {values.map((item) => (
           <option key={item} value={item}>
             {item}
@@ -35,27 +38,33 @@ function Select({ label, values, value, onChange }: SelectProps) {
 }
 
 export function DashboardFiltersPanel({ options, value, onChange }: Props) {
+  const { t } = useTranslation();
   const update = (field: keyof DashboardFilters) => (next: string) => {
     onChange({ ...value, [field]: next || undefined });
   };
 
   return (
     <div className="dashboard-filter-panel">
-      <Select label="Рік" values={options.years} value={value.year} onChange={update('year')} />
       <Select
-        label="Регіон"
+        label={t('year')}
+        values={options.years}
+        value={value.year}
+        onChange={update('year')}
+      />
+      <Select
+        label={t('region')}
         values={options.regions}
         value={value.region}
         onChange={update('region')}
       />
       <Select
-        label="Заклад освіти"
+        label={t('institution')}
         values={options.institutions}
         value={value.institution}
         onChange={update('institution')}
       />
       <Select
-        label="Спеціальність"
+        label={t('specialty')}
         values={options.specialties}
         value={value.specialty}
         onChange={update('specialty')}

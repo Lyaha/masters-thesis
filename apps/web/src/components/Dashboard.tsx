@@ -1,8 +1,10 @@
 import { filterOptions, type DashboardFilters } from '../dashboard-filters';
 import { downloadDashboardCsv } from '../dashboard-export';
+import { useTranslation } from '../i18n';
 import { percentage as pct, type Totals } from '../metrics';
 import type { Category, DashboardRow } from '../types';
 import { DashboardFiltersPanel } from './DashboardFilters';
+import { GenderOrb } from './GenderOrb';
 import { YearTrend } from './YearTrend';
 
 type Props = {
@@ -30,27 +32,23 @@ export function Dashboard({
   total,
   openProfile,
 }: Props) {
+  const { language, t } = useTranslation();
+
   return (
     <>
       <section className="hero">
         <div>
-          <span>МОНІТОРИНГ ТА ВІЗУАЛІЗАЦІЯ</span>
-          <h1>
-            Ґендерний баланс
-            <br />в ІТ-освіті
-          </h1>
-          <p>Агрегована статистика для аналізу доступності та інклюзивності освіти.</p>
-          <button onClick={openProfile}>Додати власну статистику</button>
+          <span>{t('monitoring')}</span>
+          <h1>{t('heroTitle')}</h1>
+          <p>{t('heroDescription')}</p>
+          <button onClick={openProfile}>{t('addStatistics')}</button>
         </div>
-        <div className="orb">
-          <b>{pct(totals.w, total)}%</b>
-          <small>частка жінок</small>
-        </div>
+        <GenderOrb totals={totals} />
       </section>
 
       <section className="filter">
         <label>
-          Джерело статистики
+          {t('statisticsSource')}
           <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
             {categories.map((category) => (
               <option key={category.id} value={category.id}>
@@ -64,8 +62,8 @@ export function Dashboard({
 
       <section className="filter dashboard-filter-section">
         <div>
-          <h2>Фільтри даних</h2>
-          <p>Оберіть параметри, щоб оновити показники та розподіл за закладами.</p>
+          <h2>{t('dataFilters')}</h2>
+          <p>{t('filtersDescription')}</p>
         </div>
         <DashboardFiltersPanel
           options={filterOptions(rows)}
@@ -75,10 +73,10 @@ export function Dashboard({
       </section>
 
       <section className="metrics">
-        <Metric name="Усього спостережень" value={total.toLocaleString('uk-UA')} />
-        <Metric name="Частка жінок" value={`${pct(totals.w, total)}%`} />
-        <Metric name="Частка чоловіків" value={`${pct(totals.m, total)}%`} />
-        <Metric name="Гендерний індекс" value={totals.m ? (totals.w / totals.m).toFixed(2) : '—'} />
+        <Metric name={t('totalObservations')} value={total.toLocaleString(language)} />
+        <Metric name={t('womenShare')} value={`${pct(totals.w, total)}%`} />
+        <Metric name={t('menShare')} value={`${pct(totals.m, total)}%`} />
+        <Metric name={t('genderIndex')} value={totals.m ? (totals.w / totals.m).toFixed(2) : '—'} />
       </section>
 
       <YearTrend rows={filteredRows} />
@@ -86,18 +84,18 @@ export function Dashboard({
       <section className="card">
         <div className="title">
           <div>
-            <span>РОЗПОДІЛ</span>
-            <h2>Розподіл за закладами</h2>
+            <span>{t('distribution')}</span>
+            <h2>{t('distributionTitle')}</h2>
           </div>
           <div className="legend">
             <i className="women" />
-            Жінки
+            {t('women')}
             <i className="men" />
-            Чоловіки
+            {t('men')}
             <i className="other" />
-            Інші
+            {t('other')}
             <button className="outline" onClick={() => downloadDashboardCsv(filteredRows)}>
-              Експорт CSV
+              {t('exportCsv')}
             </button>
           </div>
         </div>
@@ -108,7 +106,7 @@ export function Dashboard({
             ))}
           </div>
         ) : (
-          <p className="empty">За обраними фільтрами даних немає.</p>
+          <p className="empty">{t('emptyData')}</p>
         )}
       </section>
     </>
