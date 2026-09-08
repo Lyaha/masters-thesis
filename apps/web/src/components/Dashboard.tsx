@@ -37,8 +37,7 @@ export function Dashboard({
           <span>МОНІТОРИНГ ТА ВІЗУАЛІЗАЦІЯ</span>
           <h1>
             Ґендерний баланс
-            <br />
-            в ІТ-освіті
+            <br />в ІТ-освіті
           </h1>
           <p>Агрегована статистика для аналізу доступності та інклюзивності освіти.</p>
           <button onClick={openProfile}>Додати власну статистику</button>
@@ -68,7 +67,11 @@ export function Dashboard({
           <h2>Фільтри даних</h2>
           <p>Оберіть параметри, щоб оновити показники та розподіл за закладами.</p>
         </div>
-        <DashboardFiltersPanel options={filterOptions(rows)} value={filters} onChange={setFilters} />
+        <DashboardFiltersPanel
+          options={filterOptions(rows)}
+          value={filters}
+          onChange={setFilters}
+        />
       </section>
 
       <section className="metrics">
@@ -100,7 +103,9 @@ export function Dashboard({
         </div>
         {filteredRows.length ? (
           <div className="bars">
-            {filteredRows.map((row, index) => <DistributionBar key={index} row={row} />)}
+            {filteredRows.map((row, index) => (
+              <DistributionBar key={index} row={row} />
+            ))}
           </div>
         ) : (
           <p className="empty">За обраними фільтрами даних немає.</p>

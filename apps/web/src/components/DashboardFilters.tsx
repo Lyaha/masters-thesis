@@ -24,7 +24,11 @@ function Select({ label, values, value, onChange }: SelectProps) {
       {label}
       <select value={value || ''} onChange={(event) => onChange(event.target.value)}>
         <option value="">Усі</option>
-        {values.map((item) => <option key={item} value={item}>{item}</option>)}
+        {values.map((item) => (
+          <option key={item} value={item}>
+            {item}
+          </option>
+        ))}
       </select>
     </label>
   );
@@ -35,10 +39,27 @@ export function DashboardFiltersPanel({ options, value, onChange }: Props) {
     onChange({ ...value, [field]: next || undefined });
   };
 
-  return <div className="dashboard-filter-panel">
-    <Select label="Рік" values={options.years} value={value.year} onChange={update('year')} />
-    <Select label="Регіон" values={options.regions} value={value.region} onChange={update('region')} />
-    <Select label="Заклад освіти" values={options.institutions} value={value.institution} onChange={update('institution')} />
-    <Select label="Спеціальність" values={options.specialties} value={value.specialty} onChange={update('specialty')} />
-  </div>;
+  return (
+    <div className="dashboard-filter-panel">
+      <Select label="Рік" values={options.years} value={value.year} onChange={update('year')} />
+      <Select
+        label="Регіон"
+        values={options.regions}
+        value={value.region}
+        onChange={update('region')}
+      />
+      <Select
+        label="Заклад освіти"
+        values={options.institutions}
+        value={value.institution}
+        onChange={update('institution')}
+      />
+      <Select
+        label="Спеціальність"
+        values={options.specialties}
+        value={value.specialty}
+        onChange={update('specialty')}
+      />
+    </div>
+  );
 }

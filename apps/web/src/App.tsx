@@ -13,7 +13,9 @@ type Screen = 'dash' | 'profile' | 'admin';
 
 export function App() {
   const [screen, setScreen] = useState<Screen>('dash');
-  const [session, setSession] = useState<Session>(() => JSON.parse(localStorage.getItem('session') || 'null'));
+  const [session, setSession] = useState<Session>(() =>
+    JSON.parse(localStorage.getItem('session') || 'null'),
+  );
   const [showAuth, setShowAuth] = useState(false);
   const [notice, setNotice] = useState('');
   const [categories, setCategories] = useState<Category[]>([]);
@@ -21,12 +23,13 @@ export function App() {
   const [rows, setRows] = useState<DashboardRow[]>([]);
   const [filters, setFilters] = useState<DashboardFilters>({});
 
-  const loadCategories = () => api<Category[]>('/categories')
-    .then((items) => {
-      setCategories(items);
-      setCategoryId((value) => value || items[0]?.id || '');
-    })
-    .catch((error) => setNotice(error.message));
+  const loadCategories = () =>
+    api<Category[]>('/categories')
+      .then((items) => {
+        setCategories(items);
+        setCategoryId((value) => value || items[0]?.id || '');
+      })
+      .catch((error) => setNotice(error.message));
 
   useEffect(() => {
     loadCategories();
@@ -52,46 +55,59 @@ export function App() {
     setCategoryId(id);
     setFilters({});
   };
-  const openProfile = () => session ? setScreen('profile') : setShowAuth(true);
+  const openProfile = () => (session ? setScreen('profile') : setShowAuth(true));
 
-  return <>
-    <Header
-      screen={screen}
-      session={session}
-      setScreen={setScreen}
-      logout={logout}
-      openAuth={() => setShowAuth(true)}
-    />
-    <main>
-      {notice && <p className="notice">{notice}<button onClick={() => setNotice('')}>×</button></p>}
-      {screen === 'dash' && <Dashboard
-        categories={categories}
-        categoryId={categoryId}
-        setCategoryId={selectCategory}
-        rows={rows}
-        filteredRows={filteredRows}
-        filters={filters}
-        setFilters={setFilters}
-        totals={totals}
-        total={total}
-        openProfile={openProfile}
-      />}
-      {screen === 'profile' && session && <Profile session={session} notify={setNotice} />}
-      {screen === 'admin' && session?.role === 'admin' && <Admin
+  return (
+    <>
+      <Header
+        screen={screen}
         session={session}
-        publicCategories={categories}
-        reloadCategories={loadCategories}
-        notify={setNotice}
-      />}
-    </main>
-    {showAuth && <AuthModal
-      done={(newSession) => {
-        localStorage.setItem('session', JSON.stringify(newSession));
-        setSession(newSession);
-        setShowAuth(false);
-        setNotice('Авторизація успішна.');
-      }}
-      close={() => setShowAuth(false)}
-    />}
-  </>;
+        setScreen={setScreen}
+        logout={logout}
+        openAuth={() => setShowAuth(true)}
+      />
+      <main>
+        {notice && (
+          <p className="notice">
+            {notice}
+            <button onClick={() => setNotice('')}>×</button>
+          </p>
+        )}
+        {screen === 'dash' && (
+          <Dashboard
+            categories={categories}
+            categoryId={categoryId}
+            setCategoryId={selectCategory}
+            rows={rows}
+            filteredRows={filteredRows}
+            filters={filters}
+            setFilters={setFilters}
+            totals={totals}
+            total={total}
+            openProfile={openProfile}
+          />
+        )}
+        {screen === 'profile' && session && <Profile session={session} notify={setNotice} />}
+        {screen === 'admin' && session?.role === 'admin' && (
+          <Admin
+            session={session}
+            publicCategories={categories}
+            reloadCategories={loadCategories}
+            notify={setNotice}
+          />
+        )}
+      </main>
+      {showAuth && (
+        <AuthModal
+          done={(newSession) => {
+            localStorage.setItem('session', JSON.stringify(newSession));
+            setSession(newSession);
+            setShowAuth(false);
+            setNotice('Авторизація успішна.');
+          }}
+          close={() => setShowAuth(false)}
+        />
+      )}
+    </>
+  );
 }

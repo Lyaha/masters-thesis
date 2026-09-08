@@ -6,13 +6,13 @@ services:
       POSTGRES_USER: platform
       POSTGRES_PASSWORD: platform
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ./database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -30,7 +30,7 @@ services:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget --quiet --spider http://localhost:3001/health"]
+      test: ['CMD-SHELL', 'wget --quiet --spider http://localhost:3001/health']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -43,12 +43,12 @@ services:
       args:
         VITE_API_URL: /api
     ports:
-      - "5173:80"
+      - '5173:80'
     depends_on:
       api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget --quiet --spider http://127.0.0.1/"]
+      test: ['CMD-SHELL', 'wget --quiet --spider http://127.0.0.1/']
       interval: 5s
       timeout: 5s
       retries: 10

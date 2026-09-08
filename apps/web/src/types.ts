@@ -11,5 +11,18 @@ export type DashboardRow = {
   nonbinary: string;
   total: string;
 };
-export type Source = { id: string; name: string; category_name: string; base_url: string | null; import_type: string; enabled: boolean };
-export type Dataset = { id: string; title: string; period_label: string; category_name: string; records_count: number };
+export type Source = {
+  id: string;
+  name: string;
+  category_name: string;
+  base_url: string | null;
+  import_type: string;
+  enabled: boolean;
+};
+export type Dataset = {
+  id: string;
+  title: string;
+  period_label: string;
+  category_name: string;
+  records_count: number;
+};

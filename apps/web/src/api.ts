@@ -4,7 +4,11 @@ const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 export class ApiError extends Error {}
 
-export async function request<T>(path: string, options: RequestInit = {}, session: Session = null): Promise<T> {
+export async function request<T>(
+  path: string,
+  options: RequestInit = {},
+  session: Session = null,
+): Promise<T> {
   const response = await fetch(`${baseUrl}${path}`, {
     ...options,
     headers: {
@@ -17,5 +21,5 @@ export async function request<T>(path: string, options: RequestInit = {}, sessio
     const body = await response.json().catch(() => ({}));
     throw new ApiError(body.error || 'Помилка запиту');
   }
-  return response.status === 204 ? undefined as T : response.json();
+  return response.status === 204 ? (undefined as T) : response.json();
 }
