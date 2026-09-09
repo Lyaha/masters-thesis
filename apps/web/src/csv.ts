@@ -23,8 +23,8 @@ const requiredColumns = [
 const numericColumns = ['year', 'womenCount', 'menCount', 'nonbinaryCount'] as const;
 
 export function parseStatisticsCsv(text: string): StatisticRecord[] {
-  if (new TextEncoder().encode(text).byteLength > 2 * 1024 * 1024)
-    throw new Error('CSV перевищує 2 МіБ');
+  if (new TextEncoder().encode(text).byteLength > 10 * 1024 * 1024)
+    throw new Error('CSV перевищує 10 МіБ');
   const [header, ...lines] = text.trim().split(/\r?\n/).filter(Boolean);
 
   if (!header) throw new Error('CSV порожній');
@@ -34,7 +34,7 @@ export function parseStatisticsCsv(text: string): StatisticRecord[] {
     throw new Error('CSV не містить усіх обов’язкових колонок');
   }
 
-  if (lines.length > 5000) throw new Error('Максимум 5000 записів у наборі');
+  if (lines.length > 20000) throw new Error('Максимум 20000 записів у наборі');
   const records = lines.map((line, index) => parseRow(splitCsvLine(line), keys, index + 2));
   const unique = new Set(
     records.map((row) =>

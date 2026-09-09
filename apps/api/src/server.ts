@@ -12,7 +12,7 @@ const app = express();
 app.set('trust proxy', process.env.TRUST_PROXY === '1' ? 1 : false);
 
 app.use(cors());
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '10mb' }));
 app.use(publicRouter);
 app.use(authRouter);
 app.use('/admin', adminRouter);

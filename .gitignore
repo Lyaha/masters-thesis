@@ -11,3 +11,6 @@ outputs/
 # Local audit reports, tests, dependencies and artifacts
 /audit/
 /docker-compose.adversarial.yml
+
+# Generated local import fixtures
+/seed data/

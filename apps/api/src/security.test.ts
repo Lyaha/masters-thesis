@@ -49,6 +49,44 @@ test('password constraints use UTF-8 bytes; year/count bounds match the database
   assert.equal(datasetImportSchema.safeParse(payload).success, false);
 });
 
+test('dataset schema accepts the 15000-row fixture size and enforces the 20000-row cap', () => {
+  const record = {
+    institution: 'Test university',
+    region: 'Kyiv',
+    specialty: 'IT',
+    educationLevel: 'bachelor',
+    year: 2025,
+    womenCount: 10,
+    menCount: 20,
+    nonbinaryCount: 0,
+  };
+  const metadata = {
+    categoryId: '8f701a00-0000-4000-8000-000000000001',
+    title: 'Load test',
+    periodLabel: '2025',
+  };
+  assert.equal(
+    datasetImportSchema.safeParse({
+      ...metadata,
+      records: Array.from({ length: 15000 }, (_, i) => ({
+        ...record,
+        institution: `Test university ${i}`,
+      })),
+    }).success,
+    true,
+  );
+  assert.equal(
+    datasetImportSchema.safeParse({
+      ...metadata,
+      records: Array.from({ length: 20001 }, (_, i) => ({
+        ...record,
+        institution: `Test university ${i}`,
+      })),
+    }).success,
+    false,
+  );
+});
+
 test('only exact HTTPS provider endpoints are eligible, including redirects', async () => {
   for (const url of [
     'http://127.0.0.1/',

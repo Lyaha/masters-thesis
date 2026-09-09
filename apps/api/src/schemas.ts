@@ -75,7 +75,7 @@ export const datasetImportSchema = z.object({
   title: z.string().min(3),
   periodLabel: z.string().min(4),
   replaceDatasetId: z.string().uuid().optional(),
-  records: z.array(statisticRecordSchema).min(1).max(5000),
+  records: z.array(statisticRecordSchema).min(1).max(20000),
 });
 
 export type NewSourceCategory = z.infer<typeof newSourceCategorySchema>;

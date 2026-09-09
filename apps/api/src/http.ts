@@ -33,7 +33,7 @@ export const errorHandler: ErrorRequestHandler = (error, _request, response, nex
   }
   const errors: Record<string, [number, string]> = {
     'entity.parse.failed': [400, 'Некоректний JSON'],
-    'entity.too.large': [413, 'Набір перевищує ліміт 2 МіБ'],
+    'entity.too.large': [413, 'Набір перевищує ліміт 10 МіБ'],
     '23505': [409, 'Запис із такими даними вже існує'],
     '23503': [409, 'Запис пов’язаний з іншими даними або посилання не існує'],
     '22P02': [400, 'Некоректний ідентифікатор або значення'],
