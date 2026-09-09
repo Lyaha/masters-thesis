@@ -135,6 +135,14 @@ const translations = {
     previewReady: 'Готово до імпорту: {count} записів. Показано перші 5.',
     previewEmpty: 'Завантажте коректний CSV, щоб побачити передперегляд.',
     importFinished: 'Імпорт завершено: {count} записів',
+    csvReading: 'Читання CSV…',
+    csvPlaceholder: 'Оберіть CSV-файл або вставте його вміст сюди.',
+    csvReadingHint: 'Читаємо файл і перевіряємо записи.',
+    importInProgress: 'Імпортуємо дані…',
+    importWaitHint: 'Зачекайте, сервер зберігає записи. Не закривайте сторінку.',
+    importNextFile: 'Форму очищено. Для нового імпорту оберіть інший файл або вставте CSV.',
+    importFailed:
+      'Не вдалося підтвердити імпорт. Дані збережено у формі. Перед повторною спробою перевірте список наборів.',
   },
   en: {
     dashboard: 'Dashboard',
@@ -268,6 +276,14 @@ const translations = {
     previewReady: 'Ready to import: {count} records. Showing the first 5.',
     previewEmpty: 'Upload a valid CSV file to see a preview.',
     importFinished: 'Import complete: {count} records',
+    csvReading: 'Reading CSV…',
+    csvPlaceholder: 'Choose a CSV file or paste its contents here.',
+    csvReadingHint: 'Reading the file and validating records.',
+    importInProgress: 'Importing data…',
+    importWaitHint: 'Please wait while the server saves the records. Keep this page open.',
+    importNextFile: 'The form is cleared. Choose another file or paste CSV for a new import.',
+    importFailed:
+      'Could not confirm the import. Your data is still in the form. Check the dataset list before retrying.',
   },
 } as const;
 
