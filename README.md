@@ -13,18 +13,18 @@ MVP для магістерської кваліфікаційної робот�
 
 ### Усі компоненти в Docker
 
-1. Встановіть Docker Desktop і виконайте `docker compose up -d --build --wait`.
+1. Встановіть Docker Desktop. Виконайте `./scripts/setup.ps1`, потім `docker compose up -d --build --wait`.
 2. Відкрийте `http://localhost:5173`.
 
-Compose запускає PostgreSQL, API та web-клієнт. Web-клієнт передає запити API через внутрішній reverse proxy; для роботи інтерфейсу використовуйте порт `5173`. Порт PostgreSQL `5432` також опублікований, щоб API можна було запускати локально в режимі розробки.
+Compose запускає PostgreSQL, API та web-клієнт. Web доступний на `127.0.0.1:5173`; PostgreSQL не публікується. Оновлення наявної БД, dev-режим і правила безпеки описані в [docs/security.md](docs/security.md).
 
 ### Локальна розробка
 
-1. Виконайте `docker compose up -d db --wait`.
-2. Скопіюйте `apps/api/.env.example` у `apps/api/.env`.
+1. Виконайте `./scripts/setup.ps1`, потім `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db --wait`.
+2. Скопіюйте `apps/api/.env.example` у `apps/api/.env` та заповніть секрети з кореневого `.env`. У DATABASE_URL використайте `127.0.0.1:5432` і згенерований POSTGRES_PASSWORD.
 3. Виконайте `pnpm install`, потім `pnpm dev`.
 4. Відкрийте `http://localhost:5173`.
 
 Перевірка запущених контейнерів: `docker compose ps`. У стовпці статусу всіх сервісів має бути `healthy`. Після завершення роботи зупиніть контейнери командою `docker compose down`; дані залишаться у томі `postgres_data`.
 
-Демонстраційний адміністратор: `admin@example.com` / `admin123`. Перед реальним розгортанням обліковий запис і `JWT_SECRET` потрібно змінити.
+Облікові дані адміністратора генеруються у локальному `.env`. Пароль `admin123` більше не використовується. Для старого Docker-тома спочатку виконайте кроки оновлення з [docs/security.md](docs/security.md).

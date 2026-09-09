@@ -25,6 +25,7 @@ export type ItEntrantRow = {
   total: string;
 };
 export type DashboardData =
+  | { kind: 'profile-statistics'; rows: DashboardRow[] }
   | { kind: 'gender-statistics'; rows: DashboardRow[] }
   | { kind: 'eurostat-it'; rows: DashboardRow[] }
   | { kind: 'it-entrants'; rows: ItEntrantRow[] };

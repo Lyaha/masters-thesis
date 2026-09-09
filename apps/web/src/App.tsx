@@ -9,6 +9,7 @@ import type { DashboardFilters } from './dashboard-filters';
 import { useTranslation } from './i18n';
 import { useToast } from './toast';
 import type { Category, DashboardData, Session } from './types';
+import { readSession, writeSetting } from './storage';
 
 type Screen = 'dash' | 'profile' | 'admin';
 
@@ -16,9 +17,7 @@ export function App() {
   const { t } = useTranslation();
   const { notify } = useToast();
   const [screen, setScreen] = useState<Screen>('dash');
-  const [session, setSession] = useState<Session>(() =>
-    JSON.parse(localStorage.getItem('session') || 'null'),
-  );
+  const [session, setSession] = useState<Session>(readSession);
   const [showAuth, setShowAuth] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryId, setCategoryId] = useState('');
@@ -27,12 +26,16 @@ export function App() {
     rows: [],
   });
   const [filters, setFilters] = useState<DashboardFilters>({});
+  const [loadedCategoryId, setLoadedCategoryId] = useState('');
+  const [loadState, setLoadState] = useState<'loading' | 'error' | 'ready'>('loading');
 
   const loadCategories = () =>
     api<Category[]>('/categories')
       .then((items) => {
         setCategories(items);
-        setCategoryId((value) => value || items[0]?.id || '');
+        setCategoryId((value) =>
+          items.some((item) => item.id === value) ? value : items[0]?.id || '',
+        );
       })
       .catch((error) => notify(error.message, 'error'));
 
@@ -41,15 +44,26 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (categoryId) {
-      api<DashboardData>(`/dashboard?categoryId=${categoryId}`)
-        .then(setDashboardData)
-        .catch((error) => notify(error.message, 'error'));
-    }
-  }, [categoryId]);
+    const controller = new AbortController();
+    setLoadState(categoryId ? 'loading' : 'ready');
+    if (!categoryId) return () => controller.abort();
+    api<DashboardData>(`/dashboard?categoryId=${categoryId}`, { signal: controller.signal })
+      .then((data) => {
+        if (controller.signal.aborted) return;
+        setDashboardData(data);
+        setLoadedCategoryId(categoryId);
+        setLoadState('ready');
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        setLoadState('error');
+        notify(error.message, 'error');
+      });
+    return () => controller.abort();
+  }, [categoryId, notify]);
 
   const logout = () => {
-    localStorage.removeItem('session');
+    writeSetting('session', null);
     setSession(null);
     setScreen('dash');
   };
@@ -74,7 +88,16 @@ export function App() {
             categories={categories}
             categoryId={categoryId}
             setCategoryId={selectCategory}
-            data={dashboardData}
+            data={
+              loadedCategoryId === categoryId && loadState === 'ready'
+                ? dashboardData
+                : { kind: 'gender-statistics', rows: [] }
+            }
+            loadState={
+              loadedCategoryId !== categoryId && loadState === 'ready' && categoryId
+                ? 'loading'
+                : loadState
+            }
             filters={filters}
             setFilters={setFilters}
             openProfile={openProfile}
@@ -93,7 +116,7 @@ export function App() {
       {showAuth && (
         <AuthModal
           done={(newSession) => {
-            localStorage.setItem('session', JSON.stringify(newSession));
+            writeSetting('session', JSON.stringify(newSession));
             setSession(newSession);
             setShowAuth(false);
             notify(t('loginSuccess'), 'success');

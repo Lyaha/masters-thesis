@@ -1,4 +1,5 @@
 import type { ItEntrantRow } from './types';
+import { escapeCsv } from './csv-cell';
 
 const columns: { label: string; value: (row: ItEntrantRow) => string | number }[] = [
   { label: 'Рік', value: (row) => row.year },
@@ -23,9 +24,4 @@ export function downloadItEntrantsCsv(rows: ItEntrantRow[]): void {
   link.download = `edbo-it-entrants-${new Date().toISOString().slice(0, 10)}.csv`;
   link.click();
   URL.revokeObjectURL(url);
-}
-
-function escapeCsv(value: string | number): string {
-  const text = String(value);
-  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }

@@ -1,8 +1,15 @@
 import { z } from 'zod';
+import { isAllowedSourceUrl } from './services/open-data-http.js';
 
 export const credentialsSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8),
+  password: z
+    .string()
+    .min(8)
+    .refine(
+      (value) => Buffer.byteLength(value, 'utf8') <= 72,
+      'Пароль має містити не більше 72 байтів UTF-8',
+    ),
 });
 
 export const categorySchema = z.object({
@@ -13,7 +20,7 @@ export const categorySchema = z.object({
 
 export const dashboardFiltersSchema = z.object({
   categoryId: z.string().uuid().optional(),
-  year: z.coerce.number().int().optional(),
+  year: z.coerce.number().int().min(2000).max(2100).optional(),
   region: z.string().trim().min(1).optional(),
   institution: z.string().trim().min(1).optional(),
   specialty: z.string().trim().min(1).optional(),
@@ -33,7 +40,11 @@ const sourceFieldsSchema = z.object({
   categoryId: z.string().uuid().optional(),
   category: newSourceCategorySchema.optional(),
   name: z.string().min(2),
-  baseUrl: z.string().url().optional().or(z.literal('')),
+  baseUrl: z
+    .string()
+    .refine(isAllowedSourceUrl, 'Оберіть підтримувану адресу ЄДЕБО або Eurostat')
+    .optional()
+    .or(z.literal('')),
   importType: z.enum(['csv', 'api', 'manual']),
   enabled: z.boolean().default(true),
 });
@@ -53,9 +64,9 @@ const statisticRecordSchema = z.object({
   specialty: z.string().min(2),
   educationLevel: z.string().min(2),
   year: z.number().int().min(2000).max(2100),
-  womenCount: z.number().int().nonnegative(),
-  menCount: z.number().int().nonnegative(),
-  nonbinaryCount: z.number().int().nonnegative().default(0),
+  womenCount: z.number().int().min(0).max(2147483647),
+  menCount: z.number().int().min(0).max(2147483647),
+  nonbinaryCount: z.number().int().min(0).max(2147483647).default(0),
 });
 
 export const datasetImportSchema = z.object({
@@ -64,7 +75,7 @@ export const datasetImportSchema = z.object({
   title: z.string().min(3),
   periodLabel: z.string().min(4),
   replaceDatasetId: z.string().uuid().optional(),
-  records: z.array(statisticRecordSchema).min(1),
+  records: z.array(statisticRecordSchema).min(1).max(5000),
 });
 
 export type NewSourceCategory = z.infer<typeof newSourceCategorySchema>;

@@ -1,5 +1,6 @@
 import { createContext, type ReactNode, useContext, useEffect, useState } from 'react';
 
+import { readSetting, writeSetting } from './storage';
 export type Language = 'uk' | 'en';
 
 const translations = {
@@ -58,6 +59,15 @@ const translations = {
     men: 'Чоловіки',
     other: 'Інші',
     exportCsv: 'Експорт CSV',
+    loadingData: 'Завантаження даних…',
+    loadDataFailed: 'Не вдалося завантажити дані. Повторно оберіть джерело або оновіть сторінку.',
+    completeDataOnly:
+      'Показано лише країни й роки з повними узгодженими значеннями: жінки, чоловіки та загальна кількість. Відсутні дані не прирівнюються до нуля. «Інші» — залишок загальної кількості поза категоріями жінок і чоловіків.',
+    profileDataNotice:
+      'Добровільні відповіді: показано групи від 5 учасників за закладом, спеціальністю та роком подання. Регіон не збирається. «Інші» об’єднує небінарні відповіді та «не бажаю зазначати». Це не репрезентативна вибірка всіх студентів.',
+    submissionYear: 'Рік подання відповіді',
+    supportedSources:
+      'Підтримуються адреси ЄДЕБО та Eurostat зі списку. Для ручного джерела URL можна не вказувати.',
     emptyData: 'За обраними фільтрами даних немає.',
     shareOf: 'частка',
     genderDistribution: 'Ґендерний розподіл',
@@ -182,6 +192,15 @@ const translations = {
     men: 'Men',
     other: 'Other',
     exportCsv: 'Export CSV',
+    loadingData: 'Loading data…',
+    loadDataFailed: 'Unable to load data. Select the source again or refresh the page.',
+    completeDataOnly:
+      'Only country-years with complete, consistent female, male and total counts are shown. Missing data is not zero. “Other” is the remainder of the total outside female and male counts.',
+    profileDataNotice:
+      'Voluntary responses: groups of at least 5 participants by institution, specialty and submission year. Region is not collected. “Other” combines nonbinary and “prefer not to say” responses. This is not a representative sample of all students.',
+    submissionYear: 'Submission year',
+    supportedSources:
+      'The listed EDEBO and Eurostat endpoints are supported. Manual sources may omit the URL.',
     emptyData: 'There is no data for the selected filters.',
     shareOf: 'share',
     genderDistribution: 'Gender distribution',
@@ -263,12 +282,12 @@ type I18nContextValue = {
 const I18nContext = createContext<I18nContextValue | null>(null);
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguage] = useState<Language>(
-    () => (localStorage.getItem('language') as Language | null) ?? 'uk',
+  const [language, setLanguage] = useState<Language>(() =>
+    readSetting('language') === 'en' ? 'en' : 'uk',
   );
 
   useEffect(() => {
-    localStorage.setItem('language', language);
+    writeSetting('language', language);
     document.documentElement.lang = language;
   }, [language]);
 

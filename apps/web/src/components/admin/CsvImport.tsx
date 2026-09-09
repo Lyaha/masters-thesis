@@ -58,7 +58,8 @@ export function CsvImport({ categories, datasets, onImport }: Props) {
     event.preventDefault();
     if (!records.length) return;
 
-    const form = new FormData(event.currentTarget);
+    const element = event.currentTarget;
+    const form = new FormData(element);
     const imported = await onImport({
       categoryId: form.get('cat'),
       title: form.get('title'),
@@ -69,7 +70,7 @@ export function CsvImport({ categories, datasets, onImport }: Props) {
 
     if (imported) {
       setFileName('');
-      event.currentTarget.reset();
+      element.reset();
     }
   };
 

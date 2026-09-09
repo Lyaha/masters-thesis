@@ -8,7 +8,7 @@ test('source schema accepts exactly one category option', () => {
   const existingCategorySource = sourceSchema.safeParse({
     categoryId,
     name: 'Міністерство освіти',
-    baseUrl: 'https://mon.gov.ua',
+    baseUrl: 'https://registry.edbo.gov.ua/api/opendata/university-entrant/',
     importType: 'api',
   });
   const newCategorySource = sourceSchema.safeParse({

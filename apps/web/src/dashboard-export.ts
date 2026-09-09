@@ -1,6 +1,8 @@
 import type { DashboardRow } from './types';
+import { escapeCsv } from './csv-cell';
 
 type ExportOptions = {
+  yearLabel?: string;
   institutionLabel?: string;
   fileName?: string;
   includeRegion?: boolean;
@@ -10,6 +12,7 @@ export function dashboardRowsToCsv(rows: DashboardRow[], options: ExportOptions 
   const columns = createColumns(
     options.institutionLabel ?? 'Заклад освіти',
     options.includeRegion ?? true,
+    options.yearLabel ?? 'Рік',
   );
   const header = columns.map((column) => escapeCsv(column.label));
   const data = rows.map((row) => columns.map((column) => escapeCsv(column.value(row) ?? '')));
@@ -28,9 +31,9 @@ export function downloadDashboardCsv(rows: DashboardRow[], options?: ExportOptio
   URL.revokeObjectURL(url);
 }
 
-function createColumns(institutionLabel: string, includeRegion: boolean) {
+function createColumns(institutionLabel: string, includeRegion: boolean, yearLabel: string) {
   return [
-    { label: 'Рік', value: (row: DashboardRow) => row.year },
+    { label: yearLabel, value: (row: DashboardRow) => row.year },
     ...(includeRegion ? [{ label: 'Регіон', value: (row: DashboardRow) => row.region }] : []),
     { label: institutionLabel, value: (row: DashboardRow) => row.institution },
     { label: 'Спеціальність', value: (row: DashboardRow) => row.specialty },
@@ -39,9 +42,4 @@ function createColumns(institutionLabel: string, includeRegion: boolean) {
     { label: 'Інші', value: (row: DashboardRow) => row.nonbinary },
     { label: 'Усього', value: (row: DashboardRow) => row.total },
   ];
-}
-
-function escapeCsv(value: string | number): string {
-  const text = String(value);
-  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }

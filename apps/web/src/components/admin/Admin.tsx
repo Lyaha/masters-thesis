@@ -63,7 +63,10 @@ export function Admin({ session, publicCategories, reloadCategories, notify }: P
     return imported;
   };
 
-  const importCategories = categories.length ? categories : publicCategories;
+  const importCategories = (categories.length ? categories : publicCategories).filter(
+    (category) =>
+      !['site-users', 'ukraine-open-data', 'international-open-data'].includes(category.slug ?? ''),
+  );
 
   return (
     <section className="page admin">
@@ -93,7 +96,8 @@ function Categories({ categories, act }: { categories: Category[]; act: Action }
   const { t } = useTranslation();
   const add = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const element = event.currentTarget;
+    const form = new FormData(element);
     const created = await act('/admin/categories', {
       method: 'POST',
       body: JSON.stringify({
@@ -102,7 +106,7 @@ function Categories({ categories, act }: { categories: Category[]; act: Action }
         visible: true,
       }),
     });
-    if (created) event.currentTarget.reset();
+    if (created) element.reset();
   };
 
   return (
@@ -165,7 +169,8 @@ function Sources({
 
   const add = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const element = event.currentTarget;
+    const form = new FormData(element);
     const created = await act('/admin/sources', {
       method: 'POST',
       body: JSON.stringify({
@@ -182,7 +187,7 @@ function Sources({
         enabled: true,
       }),
     });
-    if (created) event.currentTarget.reset();
+    if (created) element.reset();
   };
 
   return (
@@ -218,11 +223,16 @@ function Sources({
           )}
           <label>
             {t('name')}
-            <input name="name" required placeholder="UNESCO API" />
+            <input name="name" required placeholder="Eurostat API" />
           </label>
           <label>
             {t('url')}
-            <input name="url" type="url" placeholder="https://..." />
+            <input name="url" type="url" list="source-endpoints" placeholder="https://..." />
+            <datalist id="source-endpoints">
+              <option value="https://registry.edbo.gov.ua/api/opendata/university-entrant/" />
+              <option value="https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/educ_uoe_enrt03" />
+            </datalist>
+            <small>{t('supportedSources')}</small>
           </label>
           <label>
             {t('type')}

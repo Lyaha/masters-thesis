@@ -23,6 +23,8 @@ const requiredColumns = [
 const numericColumns = ['year', 'womenCount', 'menCount', 'nonbinaryCount'] as const;
 
 export function parseStatisticsCsv(text: string): StatisticRecord[] {
+  if (new TextEncoder().encode(text).byteLength > 2 * 1024 * 1024)
+    throw new Error('CSV перевищує 2 МіБ');
   const [header, ...lines] = text.trim().split(/\r?\n/).filter(Boolean);
 
   if (!header) throw new Error('CSV порожній');
@@ -32,7 +34,15 @@ export function parseStatisticsCsv(text: string): StatisticRecord[] {
     throw new Error('CSV не містить усіх обов’язкових колонок');
   }
 
-  return lines.map((line, index) => parseRow(splitCsvLine(line), keys, index + 2));
+  if (lines.length > 5000) throw new Error('Максимум 5000 записів у наборі');
+  const records = lines.map((line, index) => parseRow(splitCsvLine(line), keys, index + 2));
+  const unique = new Set(
+    records.map((row) =>
+      JSON.stringify([row.institution, row.region, row.specialty, row.educationLevel, row.year]),
+    ),
+  );
+  if (unique.size !== records.length) throw new Error('CSV містить повторні записи');
+  return records;
 }
 
 function parseRow(values: string[], keys: string[], rowNumber: number): StatisticRecord {
@@ -46,7 +56,18 @@ function parseRow(values: string[], keys: string[], rowNumber: number): Statisti
   });
   numericColumns.forEach((column) => {
     if (!/^\d+$/.test(row[column])) throw new Error(`Некоректне число в рядку ${rowNumber}`);
+    const number = Number(row[column]);
+    if (
+      !Number.isSafeInteger(number) ||
+      number > (column === 'year' ? 2100 : 2147483647) ||
+      (column === 'year' && number < 2000)
+    )
+      throw new Error(`Число поза допустимим діапазоном у рядку ${rowNumber}`);
   });
+  for (const field of ['institution', 'region', 'specialty', 'educationLevel']) {
+    if (row[field].length < 2)
+      throw new Error(`Поле ${field} має містити щонайменше 2 символи у рядку ${rowNumber}`);
+  }
 
   return {
     institution: row.institution,

@@ -7,3 +7,7 @@ coverage/
 work/
 outputs/
 *.log
+
+# Local audit reports, tests, dependencies and artifacts
+/audit/
+/docker-compose.adversarial.yml

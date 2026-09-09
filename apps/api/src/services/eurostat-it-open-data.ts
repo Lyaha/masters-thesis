@@ -1,11 +1,9 @@
 import type { DashboardRow } from '../types.js';
+import { HttpError } from '../http.js';
+import { fetchOpenData, type FetchData } from './open-data-http.js';
+import { cachedSource } from './source-cache.js';
 
 const cacheTtlMs = 12 * 60 * 60 * 1000;
-
-type Cache = {
-  expiresAt: number;
-  rows: DashboardRow[];
-};
 
 type EurostatData = {
   id?: string[];
@@ -21,35 +19,33 @@ type EurostatDimension = {
   };
 };
 
-let cache: Cache | null = null;
+export function createEurostatLoader(fetchData: FetchData = fetchOpenData) {
+  return cachedSource(async (sourceUrl: string): Promise<DashboardRow[]> => {
+    const url = new URL(sourceUrl);
+    url.searchParams.set('lang', 'en');
+    url.searchParams.set('geoLevel', 'country');
+    url.searchParams.set('sinceTimePeriod', '2013');
+    url.searchParams.set('isced11', 'ED5-8');
+    url.searchParams.set('iscedf13', 'F06');
+    url.searchParams.set('unit', 'NR');
+    url.searchParams.set('freq', 'A');
 
-export async function loadEurostatItStudents(sourceUrl: string): Promise<DashboardRow[]> {
-  if (cache && cache.expiresAt > Date.now()) {
-    return cache.rows;
-  }
+    const response = await fetchData(url, { signal: AbortSignal.timeout(30_000) });
 
-  const url = new URL(sourceUrl);
-  url.searchParams.set('lang', 'en');
-  url.searchParams.set('geoLevel', 'country');
-  url.searchParams.set('sinceTimePeriod', '2013');
-  url.searchParams.set('isced11', 'ED5-8');
-  url.searchParams.set('iscedf13', 'F06');
+    if (!response.ok) {
+      throw new HttpError(502, 'Eurostat тимчасово недоступний');
+    }
 
-  const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+    const rows = parseEurostatItStudents(await response.json().catch(() => null));
 
-  if (!response.ok) {
-    throw new Error(`Eurostat повернув статус ${response.status}`);
-  }
+    if (!rows.length) {
+      throw new HttpError(502, 'Eurostat не повернув повних коректних даних про ІТ-освіту');
+    }
 
-  const rows = parseEurostatItStudents(await response.json());
-
-  if (!rows.length) {
-    throw new Error('Eurostat не повернув даних про ІТ-освіту');
-  }
-
-  cache = { rows, expiresAt: Date.now() + cacheTtlMs };
-  return rows;
+    return rows;
+  }, cacheTtlMs);
 }
+export const loadEurostatItStudents = createEurostatLoader();
 
 export function parseEurostatItStudents(payload: unknown): DashboardRow[] {
   if (!isEurostatData(payload)) {
@@ -57,6 +53,21 @@ export function parseEurostatItStudents(payload: unknown): DashboardRow[] {
   }
 
   const { id: dimensions, size: sizes, dimension, value = {} } = payload;
+  if (
+    !dimensions.every((name, position) => {
+      const index = dimension[name]?.category?.index;
+      if (!index || typeof index !== 'object' || Array.isArray(index)) return false;
+      const offsets = Object.values(index);
+      return (
+        offsets.length === sizes[position] &&
+        new Set(offsets).size === offsets.length &&
+        offsets.every(
+          (offset) => Number.isInteger(offset) && offset >= 0 && offset < sizes[position],
+        )
+      );
+    })
+  )
+    return [];
   const geoPosition = dimensions.indexOf('geo');
   const sexPosition = dimensions.indexOf('sex');
   const timePosition = dimensions.indexOf('time');
@@ -74,6 +85,7 @@ export function parseEurostatItStudents(payload: unknown): DashboardRow[] {
 
   return countries.flatMap((country) =>
     years.flatMap((year) => {
+      if (!/^\d{4}$/.test(year) || Number(year) < 2000 || Number(year) > 2100) return [];
       const total = valueAt(value, dimensions, sizes, {
         geo: geo.index?.[country],
         sex: sexIndex.T,
@@ -89,14 +101,14 @@ export function parseEurostatItStudents(payload: unknown): DashboardRow[] {
         sex: sexIndex.M,
         time: time.index?.[year],
       });
-      const totalValue = total ?? (women ?? 0) + (men ?? 0);
-      const other = Math.max(totalValue - (women ?? 0) - (men ?? 0), 0);
-
-      if (!Number.isFinite(totalValue) || (women === undefined && men === undefined)) {
+      // Missing/suppressed observations are not zero. Only compare complete, consistent rows.
+      if (total === undefined || women === undefined || men === undefined || total < women + men) {
         return [];
       }
+      const totalValue = total;
+      const other = total - women - men;
 
-      const countryName = geo.label?.[country] ?? country;
+      const countryName = typeof geo.label?.[country] === 'string' ? geo.label[country] : country;
       return [
         {
           year: Number(year),
@@ -122,11 +134,15 @@ function valueAt(
   let index = 0;
 
   for (let position = 0; position < dimensions.length; position += 1) {
-    const coordinate = coordinates[dimensions[position]] ?? 0;
-    index = index * sizes[position] + coordinate;
+    const name = dimensions[position];
+    const coordinate = coordinates[name];
+    if (coordinate === undefined && (name in coordinates || sizes[position] !== 1))
+      return undefined;
+    index = index * sizes[position] + (coordinate ?? 0);
   }
 
-  return values[String(index)];
+  const value = values[String(index)];
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : undefined;
 }
 
 function orderedCodes(index: Record<string, number> | undefined) {
@@ -143,6 +159,14 @@ function isEurostatData(
     value !== null &&
     Array.isArray((value as EurostatData).id) &&
     Array.isArray((value as EurostatData).size) &&
-    typeof (value as EurostatData).dimension === 'object'
+    (value as EurostatData).dimension !== null &&
+    typeof (value as EurostatData).dimension === 'object' &&
+    !Array.isArray((value as EurostatData).dimension) &&
+    (value as EurostatData).value !== null &&
+    typeof (value as EurostatData).value === 'object' &&
+    (value as EurostatData).id!.length === (value as EurostatData).size!.length &&
+    (value as EurostatData).id!.every((id) => typeof id === 'string') &&
+    new Set((value as EurostatData).id).size === (value as EurostatData).id!.length &&
+    (value as EurostatData).size!.every((size) => Number.isSafeInteger(size) && size > 0)
   );
 }

@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { requireAdmin, requireAuth, type AuthRequest } from '../auth.js';
 import { pool, query } from '../db.js';
-import { asyncRoute } from '../http.js';
+import { asyncRoute, HttpError } from '../http.js';
+import { z } from 'zod';
 import {
   categorySchema,
   datasetImportSchema,
@@ -13,6 +14,11 @@ import { categorySlug, resolveSourceCategoryId } from '../services/categories.js
 export const adminRouter = Router();
 
 adminRouter.use(requireAuth, requireAdmin);
+adminRouter.param('id', (_request, _response, next, value) => {
+  if (!z.string().uuid().safeParse(value).success)
+    return next(new HttpError(400, 'Некоректний ідентифікатор'));
+  next();
+});
 
 adminRouter.get(
   '/categories',
@@ -110,6 +116,11 @@ adminRouter.post(
       response.status(400).json({ error: 'Некоректний набір для імпорту' });
       return;
     }
+    const keys = dataset.data.records.map((row) =>
+      JSON.stringify([row.institution, row.region, row.specialty, row.educationLevel, row.year]),
+    );
+    if (new Set(keys).size !== keys.length)
+      throw new HttpError(409, 'Набір містить повторні записи');
 
     const client = await pool.connect();
 
@@ -117,7 +128,28 @@ adminRouter.post(
       await client.query('BEGIN');
 
       if (dataset.data.replaceDatasetId) {
-        await client.query('DELETE FROM datasets WHERE id = $1', [dataset.data.replaceDatasetId]);
+        const removed = await client.query('DELETE FROM datasets WHERE id = $1 RETURNING id', [
+          dataset.data.replaceDatasetId,
+        ]);
+        if (!removed.rowCount) throw new HttpError(404, 'Набір для заміни не знайдено');
+      }
+      const category = await client.query<{ slug: string }>(
+        'SELECT slug FROM source_categories WHERE id = $1',
+        [dataset.data.categoryId],
+      );
+      if (!category.rows[0]) throw new HttpError(404, 'Категорію не знайдено');
+      if (
+        ['site-users', 'ukraine-open-data', 'international-open-data'].includes(
+          category.rows[0].slug,
+        )
+      )
+        throw new HttpError(409, 'Для імпорту оберіть «Тестові» або власну категорію');
+      if (dataset.data.apiSourceId) {
+        const source = await client.query(
+          'SELECT 1 FROM api_sources WHERE id = $1 AND category_id = $2',
+          [dataset.data.apiSourceId, dataset.data.categoryId],
+        );
+        if (!source.rowCount) throw new HttpError(409, 'Джерело не належить обраній категорії');
       }
 
       const createdDataset = await client.query<{ id: string }>(

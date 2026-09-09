@@ -49,7 +49,7 @@ CREATE TABLE gender_statistics (
   women_count INTEGER NOT NULL CHECK (women_count >= 0),
   men_count INTEGER NOT NULL CHECK (men_count >= 0),
   nonbinary_count INTEGER NOT NULL DEFAULT 0 CHECK (nonbinary_count >= 0),
-  UNIQUE(dataset_id, institution, specialty, education_level, year)
+  UNIQUE(dataset_id, institution, region, specialty, education_level, year)
 );
 
 CREATE TABLE voluntary_profiles (

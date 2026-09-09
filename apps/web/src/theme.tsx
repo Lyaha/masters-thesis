@@ -1,6 +1,7 @@
 import { createContext, type ReactNode, useContext, useEffect, useState } from 'react';
 
 export type ThemeMode = 'system' | 'light' | 'dark';
+import { readSetting, writeSetting } from './storage';
 export type ResolvedTheme = Exclude<ThemeMode, 'system'>;
 
 type ThemeContextValue = {
@@ -13,9 +14,10 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [mode, setMode] = useState<ThemeMode>(
-    () => (localStorage.getItem('theme-mode') as ThemeMode | null) ?? 'system',
-  );
+  const [mode, setMode] = useState<ThemeMode>(() => {
+    const mode = readSetting('theme-mode');
+    return mode === 'dark' || mode === 'light' ? mode : 'system';
+  });
   const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(
     mediaQuery.matches ? 'dark' : 'light',
   );
@@ -30,7 +32,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('theme-mode', mode);
+    writeSetting('theme-mode', mode);
     document.documentElement.dataset.theme = resolvedTheme;
     document.documentElement.style.colorScheme = resolvedTheme;
   }, [mode, resolvedTheme]);

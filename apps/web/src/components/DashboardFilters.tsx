@@ -12,6 +12,8 @@ type Props = {
   onChange: (filters: DashboardFilters) => void;
   regionLabel?: string;
   showInstitution?: boolean;
+  showRegion?: boolean;
+  yearLabel?: string;
 };
 
 type SelectProps = {
@@ -45,6 +47,8 @@ export function DashboardFiltersPanel({
   onChange,
   regionLabel,
   showInstitution = true,
+  showRegion = true,
+  yearLabel,
 }: Props) {
   const { t } = useTranslation();
   const update = (field: keyof DashboardFilters) => (next: string) => {
@@ -54,17 +58,19 @@ export function DashboardFiltersPanel({
   return (
     <div className="dashboard-filter-panel">
       <Select
-        label={t('year')}
+        label={yearLabel ?? t('year')}
         values={options.years}
         value={value.year}
         onChange={update('year')}
       />
-      <Select
-        label={regionLabel ?? t('region')}
-        values={options.regions}
-        value={value.region}
-        onChange={update('region')}
-      />
+      {showRegion && (
+        <Select
+          label={regionLabel ?? t('region')}
+          values={options.regions}
+          value={value.region}
+          onChange={update('region')}
+        />
+      )}
       {showInstitution && (
         <Select
           label={t('institution')}

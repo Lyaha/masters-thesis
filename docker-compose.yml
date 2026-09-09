@@ -4,9 +4,7 @@ services:
     environment:
       POSTGRES_DB: gender_platform
       POSTGRES_USER: platform
-      POSTGRES_PASSWORD: platform
-    ports:
-      - '5432:5432'
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run scripts/setup.ps1 first}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
@@ -23,8 +21,11 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
     environment:
-      DATABASE_URL: postgresql://platform:platform@db:5432/gender_platform
-      JWT_SECRET: ${JWT_SECRET:-replace-this-in-production}
+      DATABASE_URL: postgresql://platform:${POSTGRES_PASSWORD:?Run scripts/setup.ps1 first}@db:5432/gender_platform
+      JWT_SECRET: ${JWT_SECRET:?Run scripts/setup.ps1 first}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?Run scripts/setup.ps1 first}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Run scripts/setup.ps1 first}
+      TRUST_PROXY: '1'
       PORT: 3001
     depends_on:
       db:
@@ -43,7 +44,7 @@ services:
       args:
         VITE_API_URL: /api
     ports:
-      - '5173:80'
+      - '127.0.0.1:5173:80'
     depends_on:
       api:
         condition: service_healthy

@@ -4,35 +4,36 @@ import { requireAuth, tokenFor, type AuthRequest } from '../auth.js';
 import { query } from '../db.js';
 import { asyncRoute } from '../http.js';
 import { credentialsSchema, profileSchema } from '../schemas.js';
+import { createLoginLimit } from '../login-limit.js';
 
 export const authRouter = Router();
 
 authRouter.post(
   '/auth/register',
+  createLoginLimit(20),
   asyncRoute(async (request, response) => {
     const credentials = credentialsSchema.safeParse(request.body);
 
     if (!credentials.success) {
-      response.status(400).json({ error: 'Вкажіть коректний email і пароль від 8 символів' });
+      response
+        .status(400)
+        .json({ error: 'Вкажіть коректний email і пароль від 8 символів, до 72 байтів UTF-8' });
       return;
     }
 
-    try {
-      const passwordHash = await bcrypt.hash(credentials.data.password, 10);
-      const { rows } = await query<{ id: string; role: string }>(
-        'INSERT INTO users(email, password_hash) VALUES($1, $2) RETURNING id, role',
-        [credentials.data.email, passwordHash],
-      );
+    const passwordHash = await bcrypt.hash(credentials.data.password, 12);
+    const { rows } = await query<{ id: string; role: string }>(
+      'INSERT INTO users(email, password_hash) VALUES($1, $2) RETURNING id, role',
+      [credentials.data.email, passwordHash],
+    );
 
-      response.status(201).json({ token: tokenFor(rows[0]), role: rows[0].role });
-    } catch {
-      response.status(409).json({ error: 'Цей email вже зареєстрований' });
-    }
+    response.status(201).json({ token: tokenFor(rows[0]), role: rows[0].role });
   }),
 );
 
 authRouter.post(
   '/auth/login',
+  createLoginLimit(),
   asyncRoute(async (request, response) => {
     const credentials = credentialsSchema.safeParse(request.body);
 

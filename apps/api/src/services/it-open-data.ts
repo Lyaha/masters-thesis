@@ -1,4 +1,7 @@
 import type { ItEntrantRow } from '../types.js';
+import { HttpError } from '../http.js';
+import { fetchOpenData, type FetchData } from './open-data-http.js';
+import { cachedSource } from './source-cache.js';
 
 const cacheTtlMs = 5 * 60 * 1000;
 const legacyAdmissionYears = [2020, 2021, 2022, 2023, 2024];
@@ -13,42 +16,33 @@ const allocationFields = [
   'Вечірня (контракт)',
 ];
 
-type Cache = {
-  expiresAt: number;
-  rows: ItEntrantRow[];
-};
+export function createEdboLoader(fetchData: FetchData = fetchOpenData) {
+  return cachedSource(async (sourceUrl: string): Promise<ItEntrantRow[]> => {
+    const results = await runWithConcurrency(getRequests(), 4, async ({ year, specialtyId }) => {
+      const response = await fetchData(buildUrl(sourceUrl, year, specialtyId), {
+        signal: AbortSignal.timeout(15_000),
+      });
 
-let cache: Cache | null = null;
+      if (response.status === 404) {
+        return [];
+      }
 
-export async function loadItEntrants(sourceUrl: string): Promise<ItEntrantRow[]> {
-  if (cache && cache.expiresAt > Date.now()) {
-    return cache.rows;
-  }
+      if (!response.ok) {
+        throw new HttpError(502, 'ЄДЕБО тимчасово недоступне');
+      }
 
-  const results = await runWithConcurrency(getRequests(), 4, async ({ year, specialtyId }) => {
-    const response = await fetch(buildUrl(sourceUrl, year, specialtyId), {
-      signal: AbortSignal.timeout(15_000),
+      return parseEdboEntrants(await response.json().catch(() => null));
     });
+    const rows = results.flat().sort((first, second) => first.year - second.year);
 
-    if (response.status === 404) {
-      return [];
+    if (!rows.length) {
+      throw new HttpError(502, 'ЄДЕБО не повернуло даних про вступ на ІТ-спеціальність');
     }
 
-    if (!response.ok) {
-      throw new Error(`ЄДЕБО повернуло статус ${response.status}`);
-    }
-
-    return parseEdboEntrants(await response.json());
-  });
-  const rows = results.flat().sort((first, second) => first.year - second.year);
-
-  if (!rows.length) {
-    throw new Error('ЄДЕБО не повернуло даних про вступ на ІТ-спеціальність');
-  }
-
-  cache = { rows, expiresAt: Date.now() + cacheTtlMs };
-  return rows;
+    return rows;
+  }, cacheTtlMs);
 }
+export const loadItEntrants = createEdboLoader();
 
 export function parseEdboEntrants(payload: unknown): ItEntrantRow[] {
   if (!Array.isArray(payload)) {

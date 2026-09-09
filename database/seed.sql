@@ -4,9 +4,7 @@ INSERT INTO source_categories (slug, name, description) VALUES
 ('test-data', 'Тестові', 'Демонстраційні дані для розробки та перевірки інтерфейсу.'),
 ('international-open-data', 'Європейські відкриті дані', 'Дані Eurostat про студентів ІТ-напрямів у країнах Європи за статтю, країною та роком. Дані не містять окремих закладів освіти; «Інші» означає стать, не вказану в джерелі.');
 
-INSERT INTO users (email, password_hash, role) VALUES
-('admin@example.com', '$2a$10$ccpNWO5JbS12LQrHV4d1vOupT9NF.n/5ww4abXV0WNCirmx1nNbe.', 'admin');
--- Development password for the seeded administrator: admin123. Change it before real use.
+-- The administrator is provisioned from local secrets by the API startup migration.
 
 WITH c AS (SELECT id FROM source_categories WHERE slug = 'test-data'),
 d AS (INSERT INTO datasets (category_id, title, period_label, created_by) SELECT id, 'Демонстраційна статистика ЗВО України', '2022-2025', (SELECT id FROM users WHERE role='admin' LIMIT 1) FROM c RETURNING id)

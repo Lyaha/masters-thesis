@@ -17,6 +17,7 @@ type Props = {
   filters: DashboardFilters;
   setFilters: (filters: DashboardFilters) => void;
   openProfile: () => void;
+  loadState?: 'loading' | 'error' | 'ready';
 };
 
 export function Dashboard({
@@ -27,10 +28,13 @@ export function Dashboard({
   filters,
   setFilters,
   openProfile,
+  loadState = 'ready',
 }: Props) {
   const { language, t } = useTranslation();
   const selectedCategory = categories.find((category) => category.id === categoryId);
-  const usesCountryData = data.kind === 'eurostat-it';
+  const usesCountryData =
+    selectedCategory?.slug === 'international-open-data' || data.kind === 'eurostat-it';
+  const usesProfileData = data.kind === 'profile-statistics';
   const filteredGenderRows = useMemo(
     () => (data.kind !== 'it-entrants' ? filterRows(data.rows, filters) : []),
     [data, filters],
@@ -62,7 +66,9 @@ export function Dashboard({
           </p>
           <button onClick={openProfile}>{t('addStatistics')}</button>
         </div>
-        {data.kind !== 'it-entrants' ? (
+        {loadState !== 'ready' ? (
+          <span role="status">{t(loadState === 'loading' ? 'loadingData' : 'loadDataFailed')}</span>
+        ) : data.kind !== 'it-entrants' ? (
           <GenderOrb totals={calculateTotal(data.rows)} />
         ) : (
           <ItDataMark />
@@ -85,28 +91,37 @@ export function Dashboard({
         <p>{selectedCategory?.description}</p>
       </section>
 
-      <section className="filter dashboard-filter-section">
-        <div>
-          <h2>{t('dataFilters')}</h2>
-          <p>{t('filtersDescription')}</p>
-        </div>
-        <DashboardFiltersPanel
-          options={options}
-          value={filters}
-          onChange={setFilters}
-          regionLabel={usesCountryData ? t('country') : undefined}
-          showInstitution={!usesCountryData}
-        />
-      </section>
+      {loadState === 'ready' && (
+        <>
+          {usesCountryData && <p className="empty">{t('completeDataOnly')}</p>}
+          {usesProfileData && <p className="empty">{t('profileDataNotice')}</p>}
+          <section className="filter dashboard-filter-section">
+            <div>
+              <h2>{t('dataFilters')}</h2>
+              <p>{t('filtersDescription')}</p>
+            </div>
+            <DashboardFiltersPanel
+              options={options}
+              value={filters}
+              onChange={setFilters}
+              regionLabel={usesCountryData ? t('country') : undefined}
+              showInstitution={!usesCountryData}
+              showRegion={!usesProfileData}
+              yearLabel={usesProfileData ? t('submissionYear') : undefined}
+            />
+          </section>
 
-      {data.kind === 'it-entrants' ? (
-        <ItEntrantsDashboard rows={filteredItEntrantRows} />
-      ) : (
-        <GenderDashboard
-          rows={filteredGenderRows}
-          language={language}
-          usesCountryData={usesCountryData}
-        />
+          {data.kind === 'it-entrants' ? (
+            <ItEntrantsDashboard rows={filteredItEntrantRows} />
+          ) : (
+            <GenderDashboard
+              rows={filteredGenderRows}
+              language={language}
+              usesCountryData={usesCountryData}
+              usesProfileData={usesProfileData}
+            />
+          )}
+        </>
       )}
     </>
   );
@@ -116,10 +131,12 @@ function GenderDashboard({
   rows,
   language,
   usesCountryData,
+  usesProfileData,
 }: {
   rows: DashboardRow[];
   language: string;
   usesCountryData: boolean;
+  usesProfileData: boolean;
 }) {
   const { t } = useTranslation();
   const totals = calculateTotal(rows);
@@ -160,7 +177,9 @@ function GenderDashboard({
                         includeRegion: false,
                         fileName: `eurostat-it-students-${new Date().toISOString().slice(0, 10)}.csv`,
                       }
-                    : undefined,
+                    : usesProfileData
+                      ? { yearLabel: t('submissionYear'), includeRegion: false }
+                      : undefined,
                 )
               }
             >
