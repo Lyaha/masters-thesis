@@ -762,17 +762,37 @@ button.orb-key-active {
 }
 .row {
   display: flex;
-  gap: 15px;
+  flex-wrap: wrap;
+  gap: 12px 16px;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   padding: 14px 0;
   border-bottom: 1px solid var(--border);
 }
 .row:last-child {
   border: 0;
 }
-.row > div:last-child {
-  white-space: nowrap;
+.row-content {
+  flex: 1 1 16rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.source-url {
+  margin-top: 4px;
+  line-height: 1.45;
+}
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  flex: 0 1 auto;
+  gap: 8px;
+  max-width: 100%;
+}
+.row-actions button {
+  margin: 0;
+}
+.row > button {
+  flex-shrink: 0;
 }
 @media (max-width: 760px) {
   header {
@@ -873,6 +893,10 @@ button.orb-key-active {
   .row {
     align-items: flex-start;
     flex-direction: column;
+  }
+  .row-content {
+    flex-basis: auto;
+    width: 100%;
   }
   .danger {
     margin-left: 0;

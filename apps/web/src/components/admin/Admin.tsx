@@ -130,7 +130,7 @@ function Categories({ categories, act }: { categories: Category[]; act: Action }
         <List>
           {categories.map((category) => (
             <div className="row" key={category.id}>
-              <div>
+              <div className="row-content">
                 <b>{category.name}</b>
                 <small>{category.description}</small>
               </div>
@@ -250,14 +250,14 @@ function Sources({
         <List>
           {sources.map((source) => (
             <div className="row" key={source.id}>
-              <div>
+              <div className="row-content">
                 <b>{source.name}</b>
                 <small>
-                  {source.category_name} · {source.import_type}{' '}
-                  {source.base_url && `· ${source.base_url}`}
+                  {source.category_name} · {source.import_type}
                 </small>
+                {source.base_url && <small className="source-url">{source.base_url}</small>}
               </div>
-              <div>
+              <div className="row-actions">
                 <button
                   className="outline"
                   onClick={() =>
